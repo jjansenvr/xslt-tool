@@ -27,6 +27,7 @@
     .header-status { color: #89d185; font-size: 11px; }
     .header-status.err { color: #f48771; }
     .file-input { display: none; }
+    .input-file-select { max-width: 150px; background: #3c3c3c; color: #ddd; border: 1px solid #555; padding: 3px 5px; font: 11px system-ui, sans-serif; }
     label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }
     .status { padding: 4px 10px; font-size: 12px; white-space: pre-wrap; max-height: 25%; overflow: auto; }
     .status:empty { display: none; }
@@ -51,8 +52,9 @@
       <div id="params"></div>
       <h2>Input XML
         <span>
-          <button class="small" id="uploadXml" title="XML-bestand openen">XML openen</button>
-          <input class="file-input" id="xmlFile" type="file" accept=".xml,.txt,application/xml,text/xml">
+          <button class="small" id="uploadXml" title="Een of meer XML-bestanden openen">XML openen</button>
+          <input class="file-input" id="xmlFile" type="file" accept=".xml,.txt,application/xml,text/xml" multiple>
+          <select class="input-file-select" id="inputFileSelect" aria-label="Actief XML-invoerbestand"></select>
           <label><input type="checkbox" id="xsdToggle"> XSD genereren &amp; valideren</label>
         </span>
       </h2>
@@ -66,6 +68,7 @@
         <span>
           <button class="small" id="uploadXslt" title="XSLT-bestand openen">XSLT openen</button>
           <input class="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml">
+          <button class="small" id="xsltSnippets" title="XSLT-elementen en snippets tonen">Snippets</button>
         </span>
       </h2>
       <div id="xslt" class="editor"></div>
@@ -171,17 +174,171 @@
       const xsltEd = monaco.editor.create($('xslt'), { ...opts, value: typeof savedState?.xslt === 'string' ? savedState.xslt : SAMPLE_XSLT });
       const xsdEd = monaco.editor.create($('xsd'), { ...opts, value: typeof savedState?.xsd === 'string' ? savedState.xsd : '' });
       const outEd = monaco.editor.create($('output'), { ...opts, value: '', readOnly: true });
+
+      const xsltCompletions = [
+        { label: 'xsl:template', detail: 'Template met match-patroon', insertText: 'xsl:template match="${1:/}">\n\t$0\n</xsl:template>' },
+        { label: 'xsl:apply-templates', detail: 'Pas templates toe op geselecteerde nodes', insertText: 'xsl:apply-templates select="${1:.}"/>' },
+        { label: 'xsl:for-each', detail: 'Loop over geselecteerde nodes', insertText: 'xsl:for-each select="${1:select}">\n\t$0\n</xsl:for-each>' },
+        { label: 'xsl:value-of', detail: 'Schrijf de waarde van een XPath-expressie', insertText: 'xsl:value-of select="${1:select}"/>' },
+        { label: 'xsl:copy-of', detail: 'Kopieer geselecteerde nodes', insertText: 'xsl:copy-of select="${1:select}"/>' },
+        { label: 'xsl:sequence', detail: 'Geef een reeks nodes of waarden terug', insertText: 'xsl:sequence select="${1:select}"/>' },
+        { label: 'xsl:if', detail: 'Voorwaardelijk uitvoeren', insertText: 'xsl:if test="${1:test}">\n\t$0\n</xsl:if>' },
+        { label: 'xsl:choose', detail: 'Meerdere voorwaarden met when en otherwise', insertText: 'xsl:choose>\n\t<xsl:when test="${1:test}">\n\t\t$0\n\t</xsl:when>\n\t<xsl:otherwise>\n\t</xsl:otherwise>\n</xsl:choose>' },
+        { label: 'xsl:variable', detail: 'Declareer een variabele', insertText: 'xsl:variable name="${1:name}" select="${2:select}"/>' },
+        { label: 'xsl:param', detail: 'Declareer een parameter zonder standaardwaarde', insertText: 'xsl:param name="${1:name}"/>' },
+        { label: 'xsl:with-param', detail: 'Geef een parameter door aan een template', insertText: 'xsl:with-param name="${1:name}" select="${2:select}"/>' },
+        { label: 'xsl:attribute', detail: 'Maak een attribuut aan', insertText: 'xsl:attribute name="${1:name}">${2:value}</xsl:attribute>' },
+        { label: 'xsl:element', detail: 'Maak een element aan', insertText: 'xsl:element name="${1:name}">\n\t$0\n</xsl:element>' },
+        { label: 'xsl:text', detail: 'Schrijf vaste tekst', insertText: 'xsl:text>$0</xsl:text>' },
+        { label: 'xsl:stylesheet', detail: 'Volledige XSLT 3.0 stylesheet', insertText: 'xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">\n\t$0\n</xsl:stylesheet>' }
+      ];
+      const xpathFunctions = [
+        'concat', 'contains', 'count', 'empty', 'exists', 'last', 'lower-case', 'matches',
+        'normalize-space', 'not', 'number', 'position', 'replace', 'starts-with', 'string',
+        'substring', 'sum', 'tokenize', 'upper-case'
+      ];
+
+      function xmlNames(source) {
+        const elements = new Set();
+        const attributes = new Set();
+        const doc = new DOMParser().parseFromString(source, 'application/xml');
+        if (!doc.querySelector('parsererror')) {
+          doc.querySelectorAll('*').forEach(element => {
+            elements.add(element.nodeName);
+            [...element.attributes].forEach(attribute => attributes.add(attribute.name));
+          });
+        } else {
+          for (const match of source.matchAll(/<([A-Za-z_][\w:.-]*)\b/g)) elements.add(match[1]);
+          for (const match of source.matchAll(/\s([A-Za-z_][\w:.-]*)\s*=/g)) attributes.add(match[1]);
+        }
+        return { elements: [...elements], attributes: [...attributes] };
+      }
+
+      monaco.languages.registerCompletionItemProvider('xml', {
+        triggerCharacters: ['<', ' ', ':', '$', '@'],
+        provideCompletionItems(model, position) {
+          const isXslt = model === xsltEd.getModel();
+          const line = model.getLineContent(position.lineNumber);
+          const beforeCursor = line.slice(0, position.column - 1);
+          const ltIndex = beforeCursor.lastIndexOf('<');
+          const afterOpen = ltIndex < 0 ? '' : beforeCursor.slice(ltIndex + 1);
+          const word = /[\w:.-]*$/.exec(beforeCursor)[0];
+          const wordStart = position.column - word.length;
+          let items = [];
+          let range;
+
+          if (ltIndex >= 0 && !afterOpen.startsWith('/') && !afterOpen.includes('>')) {
+            const tagHasAttributes = /\s/.test(afterOpen);
+            if (isXslt && !tagHasAttributes) {
+              range = new monaco.Range(position.lineNumber, ltIndex + 2, position.lineNumber, position.column);
+              items = xsltCompletions.map(completion => ({
+                label: completion.label,
+                detail: completion.detail,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                insertText: completion.insertText,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range
+              }));
+            } else if (isXslt && tagHasAttributes) {
+              const attrs = ['as', 'match', 'mode', 'name', 'select', 'test', 'tunnel', 'use-when', 'version'];
+              range = new monaco.Range(position.lineNumber, wordStart, position.lineNumber, position.column);
+              items = attrs.map(attribute => ({
+                label: attribute,
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: `${attribute}="$1"`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range
+              }));
+            } else if (!isXslt && !tagHasAttributes) {
+              const { elements } = xmlNames(xmlEd.getValue());
+              range = new monaco.Range(position.lineNumber, ltIndex + 2, position.lineNumber, position.column);
+              items = elements.map(element => ({
+                label: element,
+                kind: monaco.languages.CompletionItemKind.Class,
+                insertText: `${element}>$0</${element}>`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range
+              }));
+            } else if (!isXslt && tagHasAttributes) {
+              const { attributes } = xmlNames(xmlEd.getValue());
+              range = new monaco.Range(position.lineNumber, wordStart, position.lineNumber, position.column);
+              items = attributes.map(attribute => ({
+                label: attribute,
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: `${attribute}="$1"`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range
+              }));
+            }
+          } else if (isXslt) {
+            range = new monaco.Range(position.lineNumber, wordStart, position.lineNumber, position.column);
+            items = [
+              ...xsltCompletions.map(completion => ({
+                label: completion.label,
+                detail: completion.detail,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                insertText: `<${completion.insertText}`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range
+              })),
+              ...xpathFunctions.map(name => ({
+                label: name,
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: name,
+                range
+              }))
+            ];
+          }
+          return { suggestions: items };
+        }
+      });
+
+      let inputFiles = Array.isArray(savedState?.inputFiles)
+        ? savedState.inputFiles.filter(file => file && typeof file.id === 'string' && typeof file.name === 'string' && typeof file.content === 'string')
+        : [];
+      if (!inputFiles.length) {
+        inputFiles = [{
+          id: 'default-input',
+          name: 'Input XML',
+          content: typeof savedState?.xml === 'string' ? savedState.xml : SAMPLE_XML
+        }];
+      }
+      let activeInputId = inputFiles.some(file => file.id === savedState?.activeInputId)
+        ? savedState.activeInputId
+        : inputFiles[0].id;
+      const activeInput = () => inputFiles.find(file => file.id === activeInputId);
+      xmlEd.setValue(activeInput().content);
       $('xsdToggle').checked = savedState?.xsdEnabled === true;
       document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));
 
+      function updateInputSelector() {
+        const select = $('inputFileSelect');
+        select.replaceChildren(...inputFiles.map(file => {
+          const option = document.createElement('option');
+          option.value = file.id;
+          option.textContent = file.name;
+          return option;
+        }));
+        select.value = activeInputId;
+        select.hidden = inputFiles.length < 2;
+      }
+      function rememberActiveInput() {
+        const file = activeInput();
+        if (file) file.content = xmlEd.getValue();
+      }
+      updateInputSelector();
+
       function saveState() {
         try {
+          rememberActiveInput();
           localStorage.setItem(STATE_KEY, JSON.stringify({
             xml: xmlEd.getValue(),
             xslt: xsltEd.getValue(),
             xsd: xsdEd.getValue(),
             params: getParams(),
-            xsdEnabled: $('xsdToggle').checked
+            xsdEnabled: $('xsdToggle').checked,
+            inputFiles,
+            activeInputId
           }));
           $('saveStatus').textContent = 'Automatisch opgeslagen';
           $('saveStatus').classList.remove('err');
@@ -206,6 +363,14 @@
           if (param && typeof param.name === 'string' && typeof param.value === 'string') addParam(param.name, param.value);
         });
       }
+
+      $('inputFileSelect').onchange = () => {
+        rememberActiveInput();
+        activeInputId = $('inputFileSelect').value;
+        xmlEd.setValue(activeInput().content);
+        scheduleSave();
+        if ($('xsdToggle').checked) validate();
+      };
 
       addXsltParam = function(name) {
         if (!/^[A-Za-z_][A-Za-z0-9._-]*(?::[A-Za-z_][A-Za-z0-9._-]*)?$/.test(name)) {
@@ -259,7 +424,29 @@
       }
       $('uploadXml').onclick = () => $('xmlFile').click();
       $('uploadXslt').onclick = () => $('xsltFile').click();
-      $('xmlFile').onchange = () => loadFile($('xmlFile'), xmlEd, 'XML');
+      $('xmlFile').onchange = async () => {
+        const files = [...$('xmlFile').files];
+        if (!files.length) return;
+        try {
+          const loaded = await Promise.all(files.map(async file => ({
+            id: `input-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            name: file.name,
+            content: await file.text()
+          })));
+          rememberActiveInput();
+          inputFiles.push(...loaded);
+          activeInputId = loaded[0].id;
+          xmlEd.setValue(loaded[0].content);
+          updateInputSelector();
+          scheduleSave();
+          if ($('xsdToggle').checked) validate();
+          setStatus($('outStatus'), `${loaded.length} XML-bestand${loaded.length === 1 ? '' : 'en'} geladen.`, 'ok');
+        } catch (e) {
+          setStatus($('outStatus'), `XML-bestand kon niet worden gelezen: ${e.message}`, 'err');
+        } finally {
+          $('xmlFile').value = '';
+        }
+      };
       $('xsltFile').onchange = () => loadFile($('xsltFile'), xsltEd, 'XSLT');
 
       async function run() {
@@ -316,6 +503,10 @@
         }
       }
       $('generateXsd').onclick = generateXsd;
+      $('xsltSnippets').onclick = () => {
+        xsltEd.focus();
+        xsltEd.trigger('xslt-snippets', 'editor.action.triggerSuggest', {});
+      };
 
       $('xsdToggle').onchange = async () => {
         document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));

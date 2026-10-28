@@ -38,15 +38,17 @@ The application is available only on your computer by default. To use a differen
 
 The main screen has panels for parameters, input XML, XSLT, and output.
 
-1. Replace the sample XML in **Input XML** with your source document, or select **Open XML** to load a local XML file.
-2. Replace the sample stylesheet in **XSLT**, or select **Open XSLT** to load a local `.xsl` or `.xslt` file.
+1. Replace the sample XML in **Input XML** with your source document, or select **XML openen** to load one or more local XML files. When multiple files are loaded, use the list beside the button to switch the active input.
+2. Replace the sample stylesheet in **XSLT**, or select **XSLT openen** to load a local `.xsl` or `.xslt` file.
 3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet. Select the arrow beside a parameter to add it as a global `<xsl:param name="..."/>` declaration to the stylesheet.
 4. Select **Transform** or press **Ctrl+Enter** to run the transformation. The previous output is cleared when a new transformation starts.
 5. Read the result in **Output**. Errors and messages from Saxon appear below the output.
 
 The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. You can also paste content directly into either editor.
 
-Your XML, XSLT, XSD, parameters, and XSD-validation setting are automatically saved in this browser and restored when you return to the same address. This is browser-local storage, so it remains available when the Docker container restarts, but is not shared with other browsers or computers. The transformation output is not saved.
+The XML and XSLT editors provide completions while typing. The XML editor suggests element and attribute names from the active input. In the XSLT editor, press **Ctrl+Space** or select **Snippets** for common XSLT elements, templates, and XPath functions.
+
+Your XML files, active input selection, XSLT, XSD, parameters, and XSD-validation setting are automatically saved in this browser and restored when you return to the same address. This is browser-local storage, so it remains available when the Docker container restarts, but is not shared with other browsers or computers. The transformation output is not saved.
 
 ## Validate XML with XSD
 
