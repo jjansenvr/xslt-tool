@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XSLT Tester</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #1e1e1e; color: #ccc; font: 13px system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; }
+    header { display: flex; align-items: center; gap: 16px; padding: 8px 12px; background: #252526; border-bottom: 1px solid #333; }
+    header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+    header .hint { color: #888; }
+    button { background: #0e639c; color: #fff; border: 0; padding: 6px 14px; border-radius: 3px; cursor: pointer; font: inherit; }
+    button:hover { background: #1177bb; }
+    button.small { padding: 2px 8px; background: #3a3d41; }
+    button.small:hover { background: #45494e; }
+    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; min-height: 0; }
+    section { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #333; }
+    section:last-child { border-right: 0; }
+    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin: 0; padding: 6px 10px; background: #252526; color: #bbb; display: flex; align-items: center; justify-content: space-between; }
+    .editor { flex: 1; min-height: 80px; }
+    #params { padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; max-height: 30%; overflow: auto; }
+    .param { display: flex; gap: 4px; }
+    .param input { flex: 1; min-width: 0; background: #3c3c3c; color: #ddd; border: 1px solid #3c3c3c; padding: 4px 6px; font: 12px monospace; }
+    .param input:focus { outline: 1px solid #007fd4; }
+    label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+    .status { padding: 4px 10px; font-size: 12px; white-space: pre-wrap; max-height: 25%; overflow: auto; }
+    .status:empty { display: none; }
+    .ok { color: #89d185; }
+    .err { color: #f48771; }
+    .hidden { display: none !important; }
+    a.settings { margin-left: auto; color: #ccc; text-decoration: none; }
+    a.settings:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>XSLT Tester</h1>
+    <button id="run">▶ Transformeren</button>
+    <span class="hint">Ctrl+Enter</span>
+    <a href="settings.html" class="settings" title="Instellingen">⚙ Saxon <span id="saxonVersion"></span></a>
+  </header>
+  <main>
+    <section>
+      <h2>Parameters <button class="small" id="addParam" title="Parameter toevoegen">+</button></h2>
+      <div id="params"></div>
+      <h2>Input XML
+        <label><input type="checkbox" id="xsdToggle"> XSD genereren &amp; valideren</label>
+      </h2>
+      <div id="xml" class="editor"></div>
+      <div id="xsdStatus" class="status"></div>
+      <h2 class="xsd hidden">XSD <button class="small" id="generateXsd" title="XSD opnieuw afleiden uit de input XML">Genereer uit XML</button></h2>
+      <div id="xsd" class="editor xsd hidden"></div>
+    </section>
+    <section>
+      <h2>XSLT</h2>
+      <div id="xslt" class="editor"></div>
+    </section>
+    <section>
+      <h2>Output</h2>
+      <div id="output" class="editor"></div>
+      <div id="outStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script>
+    const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
+    window.MonacoEnvironment = {
+      getWorkerUrl: () => URL.createObjectURL(new Blob(
+        [`self.MonacoEnvironment={baseUrl:'${MONACO}/../'};importScripts('${MONACO}/base/worker/workerMain.js');`],
+        { type: 'text/javascript' }))
+    };
+    require.config({ paths: { vs: MONACO } });
+
+    const $ = id => document.getElementById(id);
+
+    const SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<persons>
+  <person id="1"><name>Jan</name></person>
+  <person id="2"><name>Piet</name></person>
+</persons>`;
+
+    const SAMPLE_XSLT = `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:param name="greeting" select="'Hallo'"/>
+
+  <xsl:template match="/persons">
+    <greetings>
+      <xsl:for-each select="person">
+        <greeting id="{@id}"><xsl:value-of select="concat($greeting, ' ', name)"/></greeting>
+      </xsl:for-each>
+    </greetings>
+  </xsl:template>
+</xsl:stylesheet>`;
+
+    // Selected on settings.html; the server falls back to its default when empty.
+    let saxon = '';
+    try { saxon = localStorage.getItem('saxonVersion') || ''; } catch {}
+    fetch('/api/saxon-versions').then(r => r.json()).then(d => {
+      if (!d.versions.includes(saxon)) saxon = d.default;
+      $('saxonVersion').textContent = saxon;
+    });
+
+    function addParam(name = '', value = '') {
+      const row = document.createElement('div');
+      row.className = 'param';
+      row.innerHTML = '<input placeholder="naam"><input placeholder="waarde"><button class="small" title="Verwijderen">×</button>';
+      const [n, v] = row.querySelectorAll('input');
+      n.value = name; v.value = value;
+      row.querySelector('button').onclick = () => row.remove();
+      $('params').appendChild(row);
+    }
+
+    function getParams() {
+      return [...document.querySelectorAll('.param')]
+        .map(r => { const [n, v] = r.querySelectorAll('input'); return { name: n.value.trim(), value: v.value }; })
+        .filter(p => p.name);
+    }
+
+    async function post(url, body) {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    function setStatus(el, text, cls) { el.textContent = text; el.className = 'status ' + (cls || ''); }
+
+    $('addParam').onclick = () => addParam();
+    addParam('greeting', 'Goedemorgen');
+
+    require(['vs/editor/editor.main'], () => {
+      const opts = { language: 'xml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
+      const xmlEd = monaco.editor.create($('xml'), { ...opts, value: SAMPLE_XML });
+      const xsltEd = monaco.editor.create($('xslt'), { ...opts, value: SAMPLE_XSLT });
+      const xsdEd = monaco.editor.create($('xsd'), { ...opts, value: '' });
+      const outEd = monaco.editor.create($('output'), { ...opts, value: '', readOnly: true });
+
+      async function run() {
+        setStatus($('outStatus'), 'Bezig…');
+        try {
+          const data = await post('/api/transform', { xml: xmlEd.getValue(), xslt: xsltEd.getValue(), params: getParams(), saxon });
+          if (data.error) {
+            outEd.setValue('');
+            setStatus($('outStatus'), data.error, 'err');
+          } else {
+            outEd.setValue(data.output);
+            setStatus($('outStatus'), '✓ Transformatie geslaagd' + (data.messages ? '\n' + data.messages : ''), 'ok');
+          }
+        } catch (e) {
+          setStatus($('outStatus'), e.message, 'err');
+        }
+      }
+
+      let timer;
+      async function validate() {
+        const model = xmlEd.getModel();
+        if (!$('xsdToggle').checked) {
+          monaco.editor.setModelMarkers(model, 'xsd', []);
+          setStatus($('xsdStatus'), '');
+          return;
+        }
+        try {
+          const data = await post('/api/validate', { xml: xmlEd.getValue(), xsd: xsdEd.getValue() });
+          monaco.editor.setModelMarkers(model, 'xsd', data.errors.map(e => ({
+            severity: monaco.MarkerSeverity.Error,
+            message: e.message,
+            startLineNumber: e.line || 1,
+            startColumn: Math.max(e.column, 1),
+            endLineNumber: e.line || 1,
+            endColumn: model.getLineMaxColumn(Math.min(e.line || 1, model.getLineCount()))
+          })));
+          if (data.schemaError) setStatus($('xsdStatus'), 'Ongeldig XSD: ' + data.schemaError, 'err');
+          else if (data.errors.length) setStatus($('xsdStatus'), data.errors.map(e => `Regel ${e.line}: ${e.message}`).join('\n'), 'err');
+          else setStatus($('xsdStatus'), '✓ Geldig volgens XSD', 'ok');
+        } catch (e) {
+          setStatus($('xsdStatus'), e.message, 'err');
+        }
+      }
+      const validateSoon = () => { clearTimeout(timer); timer = setTimeout(validate, 400); };
+
+      async function generateXsd() {
+        try {
+          const data = await post('/api/generate-xsd', { xml: xmlEd.getValue() });
+          if (data.error) setStatus($('xsdStatus'), data.error, 'err');
+          else xsdEd.setValue(data.xsd);
+        } catch (e) {
+          setStatus($('xsdStatus'), e.message, 'err');
+        }
+      }
+      $('generateXsd').onclick = generateXsd;
+
+      $('xsdToggle').onchange = async () => {
+        document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));
+        if ($('xsdToggle').checked && !xsdEd.getValue().trim()) await generateXsd();
+        validate();
+      };
+      xmlEd.onDidChangeModelContent(validateSoon);
+      xsdEd.onDidChangeModelContent(validateSoon);
+
+      $('run').onclick = run;
+      document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); run(); } });
+      [xmlEd, xsltEd, xsdEd].forEach(ed => ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, run));
+    });
+  </script>
+</body>
+</html>
