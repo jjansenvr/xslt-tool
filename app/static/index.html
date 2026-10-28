@@ -24,6 +24,9 @@
     .param { display: flex; gap: 4px; }
     .param input { flex: 1; min-width: 0; background: #3c3c3c; color: #ddd; border: 1px solid #3c3c3c; padding: 4px 6px; font: 12px monospace; }
     .param input:focus { outline: 1px solid #007fd4; }
+    .header-status { color: #89d185; font-size: 11px; }
+    .header-status.err { color: #f48771; }
+    .file-input { display: none; }
     label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }
     .status { padding: 4px 10px; font-size: 12px; white-space: pre-wrap; max-height: 25%; overflow: auto; }
     .status:empty { display: none; }
@@ -39,6 +42,7 @@
     <h1>XSLT Tester</h1>
     <button id="run">▶ Transformeren</button>
     <span class="hint">Ctrl+Enter</span>
+    <span id="saveStatus" class="header-status" role="status"></span>
     <a href="settings.html" class="settings" title="Instellingen">⚙ Saxon <span id="saxonVersion"></span></a>
   </header>
   <main>
@@ -46,7 +50,11 @@
       <h2>Parameters <button class="small" id="addParam" title="Parameter toevoegen">+</button></h2>
       <div id="params"></div>
       <h2>Input XML
-        <label><input type="checkbox" id="xsdToggle"> XSD genereren &amp; valideren</label>
+        <span>
+          <button class="small" id="uploadXml" title="XML-bestand openen">XML openen</button>
+          <input class="file-input" id="xmlFile" type="file" accept=".xml,.txt,application/xml,text/xml">
+          <label><input type="checkbox" id="xsdToggle"> XSD genereren &amp; valideren</label>
+        </span>
       </h2>
       <div id="xml" class="editor"></div>
       <div id="xsdStatus" class="status"></div>
@@ -54,7 +62,12 @@
       <div id="xsd" class="editor xsd hidden"></div>
     </section>
     <section>
-      <h2>XSLT</h2>
+      <h2>XSLT
+        <span>
+          <button class="small" id="uploadXslt" title="XSLT-bestand openen">XSLT openen</button>
+          <input class="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml">
+        </span>
+      </h2>
       <div id="xslt" class="editor"></div>
     </section>
     <section>
@@ -96,6 +109,19 @@
   </xsl:template>
 </xsl:stylesheet>`;
 
+    const STATE_KEY = 'xsltTesterState';
+    const XSLT_NS = 'http://www.w3.org/1999/XSL/Transform';
+    let savedState = null;
+    let scheduleSave = () => {};
+    let addXsltParam = () => { throw new Error('De XSLT-editor wordt nog geladen.'); };
+    try {
+      const state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+      if (state && typeof state === 'object') savedState = state;
+    } catch (e) {
+      $('saveStatus').textContent = `Eerder opgeslagen sessie kon niet worden geladen: ${e.message}`;
+      $('saveStatus').classList.add('err');
+    }
+
     // Selected on settings.html; the server falls back to its default when empty.
     let saxon = '';
     try { saxon = localStorage.getItem('saxonVersion') || ''; } catch {}
@@ -107,11 +133,20 @@
     function addParam(name = '', value = '') {
       const row = document.createElement('div');
       row.className = 'param';
-      row.innerHTML = '<input placeholder="naam"><input placeholder="waarde"><button class="small" title="Verwijderen">×</button>';
+      row.innerHTML = '<input placeholder="naam"><input placeholder="waarde"><button class="small add-to-xslt" title="Als xsl:param aan XSLT toevoegen">→</button><button class="small remove-param" title="Verwijderen">×</button>';
       const [n, v] = row.querySelectorAll('input');
       n.value = name; v.value = value;
-      row.querySelector('button').onclick = () => row.remove();
+      row.querySelector('.add-to-xslt').onclick = () => {
+        try {
+          addXsltParam(n.value.trim());
+        } catch (e) {
+          setStatus($('outStatus'), e.message, 'err');
+        }
+      };
+      row.querySelector('.remove-param').onclick = () => { row.remove(); scheduleSave(); };
+      row.querySelectorAll('input').forEach(input => input.addEventListener('input', scheduleSave));
       $('params').appendChild(row);
+      scheduleSave();
     }
 
     function getParams() {
@@ -129,16 +164,106 @@
     function setStatus(el, text, cls) { el.textContent = text; el.className = 'status ' + (cls || ''); }
 
     $('addParam').onclick = () => addParam();
-    addParam('greeting', 'Goedemorgen');
 
     require(['vs/editor/editor.main'], () => {
       const opts = { language: 'xml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
-      const xmlEd = monaco.editor.create($('xml'), { ...opts, value: SAMPLE_XML });
-      const xsltEd = monaco.editor.create($('xslt'), { ...opts, value: SAMPLE_XSLT });
-      const xsdEd = monaco.editor.create($('xsd'), { ...opts, value: '' });
+      const xmlEd = monaco.editor.create($('xml'), { ...opts, value: typeof savedState?.xml === 'string' ? savedState.xml : SAMPLE_XML });
+      const xsltEd = monaco.editor.create($('xslt'), { ...opts, value: typeof savedState?.xslt === 'string' ? savedState.xslt : SAMPLE_XSLT });
+      const xsdEd = monaco.editor.create($('xsd'), { ...opts, value: typeof savedState?.xsd === 'string' ? savedState.xsd : '' });
       const outEd = monaco.editor.create($('output'), { ...opts, value: '', readOnly: true });
+      $('xsdToggle').checked = savedState?.xsdEnabled === true;
+      document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));
+
+      function saveState() {
+        try {
+          localStorage.setItem(STATE_KEY, JSON.stringify({
+            xml: xmlEd.getValue(),
+            xslt: xsltEd.getValue(),
+            xsd: xsdEd.getValue(),
+            params: getParams(),
+            xsdEnabled: $('xsdToggle').checked
+          }));
+          $('saveStatus').textContent = 'Automatisch opgeslagen';
+          $('saveStatus').classList.remove('err');
+        } catch (e) {
+          $('saveStatus').textContent = `Opslaan mislukt: ${e.message}`;
+          $('saveStatus').classList.add('err');
+        }
+      }
+
+      let saveTimer;
+      scheduleSave = () => {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveState, 300);
+      };
+      [xmlEd, xsltEd, xsdEd].forEach(editor => editor.onDidChangeModelContent(scheduleSave));
+      window.addEventListener('pagehide', saveState);
+      if (savedState) $('saveStatus').textContent = 'Vorige sessie hersteld';
+      else addParam('greeting', 'Goedemorgen');
+      if (Array.isArray(savedState?.params)) {
+        $('params').replaceChildren();
+        savedState.params.forEach(param => {
+          if (param && typeof param.name === 'string' && typeof param.value === 'string') addParam(param.name, param.value);
+        });
+      }
+
+      addXsltParam = function(name) {
+        if (!/^[A-Za-z_][A-Za-z0-9._-]*(?::[A-Za-z_][A-Za-z0-9._-]*)?$/.test(name)) {
+          throw new Error('Vul een geldige XML-naam in voor de parameter.');
+        }
+
+        const source = xsltEd.getValue();
+        const doc = new DOMParser().parseFromString(source, 'application/xml');
+        const root = doc.documentElement;
+        if (doc.querySelector('parsererror') || root.namespaceURI !== XSLT_NS || !['stylesheet', 'transform'].includes(root.localName)) {
+          throw new Error('De XSLT moet een geldige stylesheet of transform zijn om een parameter toe te voegen.');
+        }
+        if ([...root.children].some(child => child.namespaceURI === XSLT_NS && child.localName === 'param' && child.getAttribute('name') === name)) {
+          setStatus($('outStatus'), `De globale parameter "${name}" staat al in de XSLT.`, 'ok');
+          return;
+        }
+
+        const closeTag = new RegExp(`<\\/${root.tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*>`);
+        const match = closeTag.exec(source);
+        if (!match) throw new Error('De afsluitende stylesheet-tag is niet gevonden.');
+        const closeIndex = match.index;
+        const lineStart = source.lastIndexOf('\n', closeIndex - 1) + 1;
+        const beforeClose = source.slice(lineStart, closeIndex);
+        const indent = /^[ \t]*/.exec(beforeClose)[0];
+        const prefix = root.lookupPrefix(XSLT_NS);
+        const paramTag = `${prefix ? `${prefix}:` : ''}param`;
+        const paramLine = `<${paramTag} name="${name}"/>`;
+        const insertion = beforeClose.trim()
+          ? `\n${indent}  ${paramLine}\n${indent}`
+          : `  ${paramLine}\n${indent}`;
+        const position = xsltEd.getModel().getPositionAt(closeIndex);
+        xsltEd.executeEdits('add-xslt-param', [{
+          range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+          text: insertion,
+          forceMoveMarkers: true
+        }]);
+        setStatus($('outStatus'), `Globale parameter "${name}" toegevoegd aan de XSLT.`, 'ok');
+      };
+
+      async function loadFile(input, editor, label) {
+        const file = input.files[0];
+        if (!file) return;
+        try {
+          editor.setValue(await file.text());
+          setStatus($('outStatus'), `${label} geladen: ${file.name}`, 'ok');
+        } catch (e) {
+          setStatus($('outStatus'), `Bestand kon niet worden gelezen: ${e.message}`, 'err');
+        } finally {
+          input.value = '';
+        }
+      }
+      $('uploadXml').onclick = () => $('xmlFile').click();
+      $('uploadXslt').onclick = () => $('xsltFile').click();
+      $('xmlFile').onchange = () => loadFile($('xmlFile'), xmlEd, 'XML');
+      $('xsltFile').onchange = () => loadFile($('xsltFile'), xsltEd, 'XSLT');
 
       async function run() {
+        outEd.setValue('');
         setStatus($('outStatus'), 'Bezig…');
         try {
           const data = await post('/api/transform', { xml: xmlEd.getValue(), xslt: xsltEd.getValue(), params: getParams(), saxon });
@@ -194,6 +319,7 @@
 
       $('xsdToggle').onchange = async () => {
         document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));
+        scheduleSave();
         if ($('xsdToggle').checked && !xsdEd.getValue().trim()) await generateXsd();
         validate();
       };
@@ -203,6 +329,7 @@
       $('run').onclick = run;
       document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); run(); } });
       [xmlEd, xsltEd, xsdEd].forEach(ed => ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, run));
+      if ($('xsdToggle').checked) validate();
     });
   </script>
 </body>

@@ -12,6 +12,14 @@ docker compose up -d
 
 Docker downloads the published image from GitHub Container Registry; it does not build the application locally. Open [http://localhost:8080](http://localhost:8080) in your browser.
 
+To build and test the current source locally before a release, use the separate build Compose file:
+
+```sh
+docker compose -f docker-compose.build.yml up --build
+```
+
+This builds the `xslt-tool:local` image from the local `Dockerfile` and serves it at [http://localhost:8080](http://localhost:8080). Stop it with `Ctrl+C`, or run `docker compose -f docker-compose.build.yml down`.
+
 If the image is not publicly accessible, sign in to GitHub Container Registry before starting the service:
 
 ```sh
@@ -30,13 +38,15 @@ The application is available only on your computer by default. To use a differen
 
 The main screen has panels for parameters, input XML, XSLT, and output.
 
-1. Replace the sample XML in **Input XML** with your source document.
-2. Replace the sample stylesheet in **XSLT** with your transformation.
-3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet.
-4. Select **Transform** or press **Ctrl+Enter** to run the transformation.
+1. Replace the sample XML in **Input XML** with your source document, or select **Open XML** to load a local XML file.
+2. Replace the sample stylesheet in **XSLT**, or select **Open XSLT** to load a local `.xsl` or `.xslt` file.
+3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet. Select the arrow beside a parameter to add it as a global `<xsl:param name="..."/>` declaration to the stylesheet.
+4. Select **Transform** or press **Ctrl+Enter** to run the transformation. The previous output is cleared when a new transformation starts.
 5. Read the result in **Output**. Errors and messages from Saxon appear below the output.
 
-The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. Input is entered or pasted into the editors; there is no file-upload button.
+The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. You can also paste content directly into either editor.
+
+Your XML, XSLT, XSD, parameters, and XSD-validation setting are automatically saved in this browser and restored when you return to the same address. This is browser-local storage, so it remains available when the Docker container restarts, but is not shared with other browsers or computers. The transformation output is not saved.
 
 ## Validate XML with XSD
 
