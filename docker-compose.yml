@@ -1,5 +1,5 @@
 services:
   xslt-tester:
-    build: .
+    image: ghcr.io/jjansenvr/xslt-tool:latest
     ports:
       - "8080:8080"
