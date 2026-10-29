@@ -38,6 +38,8 @@ The application is available only on your computer by default. To use a differen
 
 The main screen has panels for parameters, input XML, XSLT, and output.
 
+Select **Help** in the application header for the interface guide, including transformation steps, editor assistance, context menus, XSD validation, and browser-local saving.
+
 1. Replace the sample XML in **Input XML** with your source document, or select **XML openen** to load one or more local XML files. When multiple files are loaded, use the list beside the button to switch the active input.
 2. Replace the sample stylesheet in **XSLT**, or select **XSLT openen** to load a local `.xsl` or `.xslt` file.
 3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet. Select the arrow beside a parameter to add it as a global `<xsl:param name="..."/>` declaration to the stylesheet.
@@ -47,6 +49,12 @@ The main screen has panels for parameters, input XML, XSLT, and output.
 The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. You can also paste content directly into either editor.
 
 The XML and XSLT editors provide completions while typing. The XML editor suggests element and attribute names from the active input. In the XSLT editor, press **Ctrl+Space** or select **Snippets** for common XSLT elements, templates, and XPath functions.
+
+Right-click a position in the XML editor and choose **Copy XPath** to copy an XPath for the element at that location. Unique elements are not numbered; repeated siblings use a unique attribute predicate when possible (for example, `adres[@type="woon"]`), and otherwise use a numeric index. When the cursor is on an attribute, the XPath includes that attribute.
+
+Right-click a position in the XSLT editor to show the relevant context action: **Highlight XML scope** is available inside non-parameter `select` or `match` expressions, while **Highlight parameter input** is available on parameter declarations or `$parameter` references. XML scope highlighting marks the selected XML elements and uses the browser's XPath 1.0 evaluator, so XPath 2.0/3.0-specific expressions are not supported. Choose **Clear XML scope highlight** in the XML editor's context menu to remove the marks.
+
+To find a parameter's value, right-click its name (for example `$greeting`) in the XSLT editor and choose **Highlight parameter input**. If the parameter has no matching entry in the Parameters panel, the tool reports whether the XSLT's default value will be used.
 
 Your XML files, active input selection, XSLT, XSD, parameters, and XSD-validation setting are automatically saved in this browser and restored when you return to the same address. This is browser-local storage, so it remains available when the Docker container restarts, but is not shared with other browsers or computers. The transformation output is not saved.
 
