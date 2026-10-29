@@ -14,6 +14,13 @@ RUN for v in $SAXON_VERSIONS; do \
       mvn -q -B dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/saxon/$v || exit 1; \
     done
 
+# DataSonnet mapper (same version as Frank!Framework) plus a small command line runner
+FROM maven:3.9-eclipse-temurin-17 AS datasonnet
+WORKDIR /build
+COPY datasonnet/ .
+RUN mvn -q -B dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/datasonnet/lib \
+    && javac --release 17 -encoding UTF-8 -cp "/datasonnet/lib/*" -d /datasonnet/classes DataSonnetRunner.java
+
 FROM python:3.12-slim
 
 RUN apt-get update \
@@ -21,6 +28,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=saxon /saxon /opt/saxon
+COPY --from=datasonnet /datasonnet /opt/datasonnet
 
 WORKDIR /srv
 COPY requirements.txt .

@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.datasonnet import router as datasonnet_router
 from app.api.schema import router as schema_router
 from app.api.transform import router as transform_router
 
@@ -11,6 +12,7 @@ from app.api.transform import router as transform_router
 app = FastAPI(title="XSLT Tester")
 app.include_router(transform_router, prefix="/api")
 app.include_router(schema_router, prefix="/api")
+app.include_router(datasonnet_router, prefix="/api")
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 FRONTEND_ASSETS = FRONTEND_DIST / "assets"

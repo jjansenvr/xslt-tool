@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.config import DEFAULT_SAXON
@@ -22,3 +24,15 @@ class ValidateRequest(BaseModel):
 
 class GenerateXsdRequest(BaseModel):
     xml: str
+
+
+class DataSonnetParam(Param):
+    type: Literal["auto", "text", "json", "xml"] = "auto"
+
+
+class DataSonnetRequest(BaseModel):
+    payload: str
+    script: str
+    inputType: str = "application/json"
+    outputType: str = "application/json"
+    params: list[DataSonnetParam] = Field(default_factory=list)

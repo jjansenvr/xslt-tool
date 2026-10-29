@@ -1,3 +1,5 @@
+import { downloadText } from './download.js';
+
 export function initializeLegacyWorkspace() {
 const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
     window.MonacoEnvironment = {
@@ -905,7 +907,26 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
           $('xmlFile').value = '';
         }
       };
-      $('xsltFile').onchange = () => loadFile($('xsltFile'), xsltEd, 'XSLT');
+      let xsltFileName = 'transform.xsl';
+      $('xsltFile').onchange = () => {
+        if ($('xsltFile').files[0]) xsltFileName = $('xsltFile').files[0].name;
+        loadFile($('xsltFile'), xsltEd, 'XSLT');
+      };
+
+      $('saveXml').onclick = () => {
+        const name = activeInput().id === 'default-input' ? 'input.xml' : activeInput().name;
+        downloadText(name, xmlEd.getValue(), 'application/xml');
+      };
+      $('saveXslt').onclick = () => downloadText(xsltFileName, xsltEd.getValue(), 'application/xml');
+      $('saveOutput').onclick = () => {
+        const output = outEd.getValue();
+        if (!output) {
+          setStatus($('outStatus'), 'Er is nog geen output om op te slaan. Voer eerst een transformatie uit.', 'err');
+          return;
+        }
+        const isXml = output.trimStart().startsWith('<');
+        downloadText(isXml ? 'output.xml' : 'output.txt', output, isXml ? 'application/xml' : 'text/plain');
+      };
 
       async function run() {
         outEd.setValue('');
