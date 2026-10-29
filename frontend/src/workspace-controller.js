@@ -1,140 +1,5 @@
-<!doctype html>
-<html lang="nl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>XSLT Tester</title>
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: #1e1e1e; color: #ccc; font: 13px system-ui, sans-serif; }
-    body { display: flex; flex-direction: column; }
-    header { display: flex; align-items: center; gap: 16px; padding: 8px 12px; background: #252526; border-bottom: 1px solid #333; }
-    header h1 { font-size: 15px; margin: 0; font-weight: 600; }
-    header .hint { color: #888; }
-    button { background: #0e639c; color: #fff; border: 0; padding: 6px 14px; border-radius: 3px; cursor: pointer; font: inherit; }
-    button:hover { background: #1177bb; }
-    button.small { padding: 2px 8px; background: #3a3d41; }
-    button.small:hover { background: #45494e; }
-    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; min-height: 0; }
-    section { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #333; }
-    section:last-child { border-right: 0; }
-    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin: 0; padding: 6px 10px; background: #252526; color: #bbb; display: flex; align-items: center; justify-content: space-between; }
-    .editor { flex: 1; min-height: 80px; }
-    #params { padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; max-height: 30%; overflow: auto; }
-    .param { display: flex; gap: 4px; }
-    .param input { flex: 1; min-width: 0; background: #3c3c3c; color: #ddd; border: 1px solid #3c3c3c; padding: 4px 6px; font: 12px monospace; }
-    .param input:focus { outline: 1px solid #007fd4; }
-    .param-highlight { background: rgba(38, 166, 154, .22); outline: 1px solid #26a69a; }
-    .header-status { color: #89d185; font-size: 11px; }
-    .header-status.err { color: #f48771; }
-    .file-input { display: none; }
-    .input-file-select { max-width: 150px; background: #3c3c3c; color: #ddd; border: 1px solid #555; padding: 3px 5px; font: 11px system-ui, sans-serif; }
-    label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }
-    .status { padding: 4px 10px; font-size: 12px; white-space: pre-wrap; max-height: 25%; overflow: auto; }
-    .status:empty { display: none; }
-    .ok { color: #89d185; }
-    .err { color: #f48771; }
-    .hidden { display: none !important; }
-    .monaco-editor .xml-scope-highlight { background: rgba(38, 166, 154, .22); }
-    dialog { width: min(760px, calc(100vw - 32px)); max-height: min(85vh, 900px); padding: 0; border: 1px solid #444; border-radius: 6px; background: #1e1e1e; color: #ccc; box-shadow: 0 12px 40px #0009; }
-    dialog::backdrop { background: #0009; }
-    .help-header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: #252526; border-bottom: 1px solid #444; }
-    .help-header h2 { padding: 0; font-size: 15px; }
-    .help-content { padding: 8px 22px 22px; line-height: 1.55; }
-    .help-content h3 { margin: 20px 0 6px; color: #fff; font-size: 14px; }
-    .help-content p { margin: 6px 0; }
-    .help-content kbd, .help-content code { padding: 1px 5px; border-radius: 3px; background: #333; font-family: ui-monospace, monospace; }
-    a.settings { margin-left: auto; color: #ccc; text-decoration: none; }
-    a.settings:hover { color: #fff; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>XSLT Tester</h1>
-    <button id="run">▶ Transformeren</button>
-    <span class="hint">Ctrl+Enter</span>
-    <button class="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
-    <span id="saveStatus" class="header-status" role="status"></span>
-    <a href="settings.html" class="settings" title="Instellingen">⚙ Saxon <span id="saxonVersion"></span></a>
-  </header>
-  <main>
-    <section>
-      <h2>Parameters <button class="small" id="addParam" title="Parameter toevoegen">+</button></h2>
-      <div id="params"></div>
-      <h2>Input XML
-        <span>
-          <button class="small" id="uploadXml" title="Een of meer XML-bestanden openen">XML openen</button>
-          <input class="file-input" id="xmlFile" type="file" accept=".xml,.txt,application/xml,text/xml" multiple>
-          <select class="input-file-select" id="inputFileSelect" aria-label="Actief XML-invoerbestand"></select>
-          <label><input type="checkbox" id="xsdToggle"> XSD genereren &amp; valideren</label>
-        </span>
-      </h2>
-      <div id="xml" class="editor"></div>
-      <div id="xsdStatus" class="status"></div>
-      <h2 class="xsd hidden">XSD <button class="small" id="generateXsd" title="XSD opnieuw afleiden uit de input XML">Genereer uit XML</button></h2>
-      <div id="xsd" class="editor xsd hidden"></div>
-    </section>
-    <section>
-      <h2>XSLT
-        <span>
-          <button class="small" id="uploadXslt" title="XSLT-bestand openen">XSLT openen</button>
-          <input class="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml">
-          <button class="small" id="xsltSnippets" title="XSLT-elementen en snippets tonen">Snippets</button>
-        </span>
-      </h2>
-      <div id="xslt" class="editor"></div>
-    </section>
-    <section>
-      <h2>Output</h2>
-      <div id="output" class="editor"></div>
-      <div id="outStatus" class="status"></div>
-    </section>
-  </main>
-  <dialog id="helpDialog" aria-labelledby="helpTitle">
-    <div class="help-header">
-      <h2 id="helpTitle">XSLT Tester - Help</h2>
-      <button class="small" id="closeHelp" aria-label="Help sluiten">Sluiten</button>
-    </div>
-    <div class="help-content">
-      <h3>Een transformatie uitvoeren</h3>
-      <ol>
-        <li>Plak XML in <strong>Input XML</strong> of kies <strong>XML openen</strong> om een of meer lokale bestanden te laden. Gebruik de keuzelijst om tussen geladen bestanden te wisselen.</li>
-        <li>Plak een stylesheet in <strong>XSLT</strong> of kies <strong>XSLT openen</strong> om een lokaal <code>.xsl</code>- of <code>.xslt</code>-bestand te laden.</li>
-        <li>Voeg parameters toe met <strong>+</strong>. Vul hun naam en waarde in. De pijl voegt een globale <code>xsl:param</code>-declaratie toe aan de stylesheet.</li>
-        <li>Kies <strong>Transformeren</strong> of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. De vorige output wordt eerst gewist; de nieuwe uitvoer of foutmelding verschijnt onder <strong>Output</strong>.</li>
-      </ol>
-      <p>Er staan voorbeeld-XML, een XSLT 3.0-stylesheet en de parameter <code>greeting</code> klaar om mee te beginnen.</p>
-
-      <h3>Autocomplete en XSLT-snippets</h3>
-      <p>De XML-editor kan element- en attribuutnamen uit de actieve input voorstellen. In de XSLT-editor open je suggesties met <kbd>Ctrl</kbd>+<kbd>Space</kbd> of de knop <strong>Snippets</strong>. Daar vind je veelgebruikte XSLT-elementen, templates en XPath-functies.</p>
-
-      <h3>Contextmenu's</h3>
-      <ul>
-        <li>Rechtsklik in de XML-editor en kies <strong>Copy XPath</strong> om het XPath van de element- of attribuutlocatie te kopiëren. Unieke elementen krijgen geen index. Herhaalde elementen gebruiken waar mogelijk een uniek attribuut, anders een index.</li>
-        <li>Rechtsklik in een XSLT-<code>select</code> of <code>match</code>-expressie om <strong>Highlight XML scope</strong> te zien en de geselecteerde XML-elementen te markeren.</li>
-        <li>Rechtsklik op een parametervoorbeeld zoals <code>$greeting</code> of een parameterdeclaratie voor <strong>Highlight parameter input</strong>. De bijbehorende parameterinvoer wordt gemarkeerd. Ontbreekt invoer, dan meldt de app of de stylesheet een standaardwaarde gebruikt.</li>
-        <li>Gebruik <strong>Clear XML scope highlight</strong> in het XML-contextmenu om markeringen te wissen.</li>
-      </ul>
-      <p>Scope-highlighting gebruikt de XPath 1.0-evaluator van de browser. XPath 2.0/3.0-specifieke expressies kunnen daardoor niet worden gemarkeerd.</p>
-
-      <h3>XML valideren met XSD</h3>
-      <ol>
-        <li>Schakel <strong>XSD genereren &amp; valideren</strong> in. Er wordt een beginschema afgeleid van de actieve XML.</li>
-        <li>Pas het schema aan indien nodig. Wijzigingen in XML en XSD worden automatisch gevalideerd.</li>
-        <li>Kies <strong>Genereer uit XML</strong> om het schema opnieuw af te leiden.</li>
-      </ol>
-      <p>Het gegenereerde schema is gebaseerd op het voorbeeld en is een startpunt; controleer het voordat je het gebruikt voor andere documenten.</p>
-
-      <h3>Opslaan en Saxon</h3>
-      <p>XML-bestanden, de actieve input, XSLT, XSD en parameters worden automatisch in deze browser opgeslagen en hersteld bij een volgend bezoek op hetzelfde adres, ook na een Docker-herstart. De opslag wordt niet gedeeld met andere browsers of computers. De transformatie-output wordt niet opgeslagen.</p>
-      <p>Kies <strong>Saxon</strong> rechtsboven om een beschikbare Saxon-HE-versie te selecteren. Die keuze wordt ook in deze browser bewaard.</p>
-      <p>De editor laadt Monaco vanaf jsDelivr; internettoegang is nodig om de editor te laden.</p>
-    </div>
-  </dialog>
-
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script>
-    const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
+export function initializeLegacyWorkspace() {
+const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
     window.MonacoEnvironment = {
       getWorkerUrl: () => URL.createObjectURL(new Blob(
         [`self.MonacoEnvironment={baseUrl:'${MONACO}/../'};importScripts('${MONACO}/base/worker/workerMain.js');`],
@@ -216,7 +81,32 @@
       return res.json();
     }
 
-    function setStatus(el, text, cls) { el.textContent = text; el.className = 'status ' + (cls || ''); }
+    function setStatus(el, text, cls) {
+      el.className = 'status ' + (cls || '');
+      const source = el.id || 'app';
+      const isValidationMessage = el.id === 'xsdStatus';
+
+      if (isValidationMessage) {
+        el.textContent = text;
+        if (cls !== 'err') {
+          window.dispatchEvent(new CustomEvent('app-notification', {
+            detail: { source, message: '', type: 'info', duration: 0 }
+          }));
+          return;
+        }
+      } else {
+        el.textContent = '';
+      }
+
+      window.dispatchEvent(new CustomEvent('app-notification', {
+        detail: {
+          source,
+          message: text,
+          type: cls || 'info',
+          duration: cls === 'ok' ? 4500 : cls === 'err' ? 12000 : 0
+        }
+      }));
+    }
 
     $('openHelp').onclick = () => $('helpDialog').showModal();
     $('closeHelp').onclick = () => $('helpDialog').close();
@@ -892,6 +782,14 @@
         } catch (e) {
           $('saveStatus').textContent = `Opslaan mislukt: ${e.message}`;
           $('saveStatus').classList.add('err');
+          window.dispatchEvent(new CustomEvent('app-notification', {
+            detail: {
+              source: 'saveStatus',
+              message: `Automatisch opslaan is mislukt: ${e.message}`,
+              type: 'err',
+              duration: 12000
+            }
+          }));
         }
       }
 
@@ -1082,6 +980,4 @@
       [xmlEd, xsltEd, xsdEd].forEach(ed => ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, run));
       if ($('xsdToggle').checked) validate();
     });
-  </script>
-</body>
-</html>
+}

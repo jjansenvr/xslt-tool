@@ -1,3 +1,10 @@
+FROM node:22-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
 # Download each Saxon-HE version with its runtime dependencies into /saxon/<version>
 FROM maven:3.9-eclipse-temurin-17 AS saxon
 ARG SAXON_VERSIONS="9.9.1-8 10.9 11.7 12.5"
@@ -19,6 +26,7 @@ WORKDIR /srv
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
+COPY --from=frontend /frontend/dist ./frontend/dist
 
 EXPOSE 8080
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

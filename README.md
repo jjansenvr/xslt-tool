@@ -20,6 +20,42 @@ docker compose -f docker-compose.build.yml up --build
 
 This builds the `xslt-tool:local` image from the local `Dockerfile` and serves it at [http://localhost:8080](http://localhost:8080). Stop it with `Ctrl+C`, or run `docker compose -f docker-compose.build.yml down`.
 
+## Project structure and development
+
+The frontend is a React application built with Vite. The Python backend uses FastAPI and exposes the transformation, Saxon-version, XSD-generation, and XML-validation APIs. The Docker image builds the frontend first and then serves its static bundle alongside the API.
+
+```text
+frontend/
+  src/App.jsx                  React workspace and settings UI
+  src/workspace-controller.js  Monaco integration and editor interactions
+app/
+  main.py                      FastAPI application and frontend serving
+  api/models.py                API request models
+  api/transform.py             Saxon version discovery and transformations
+  api/schema.py                XSD generation and validation
+```
+
+The workspace controller keeps Monaco's imperative editor features—such as context menus, XPath helpers, snippets, and browser-local workspace state—behind the React UI boundary.
+
+The editor layout uses the available browser height. On narrower screens the panels rearrange into a scrollable layout so the output remains reachable without horizontal overflow.
+
+For frontend development, start the FastAPI backend on port 8080 and run:
+
+```sh
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8080
+```
+
+In another terminal:
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+Vite serves the frontend on port 5173 and proxies `/api` requests to the backend on port 8080. For a production-like local build, use the Docker Compose command above.
+
 If the image is not publicly accessible, sign in to GitHub Container Registry before starting the service:
 
 ```sh
@@ -44,7 +80,7 @@ Select **Help** in the application header for the interface guide, including tra
 2. Replace the sample stylesheet in **XSLT**, or select **XSLT openen** to load a local `.xsl` or `.xslt` file.
 3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet. Select the arrow beside a parameter to add it as a global `<xsl:param name="..."/>` declaration to the stylesheet.
 4. Select **Transform** or press **Ctrl+Enter** to run the transformation. The previous output is cleared when a new transformation starts.
-5. Read the result in **Output**. Errors and messages from Saxon appear below the output.
+5. Read the result in **Output**. Important success and error messages appear near the top of the screen; XSD validation details stay with the XML panel.
 
 The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. You can also paste content directly into either editor.
 
@@ -69,7 +105,7 @@ The generated XSD is inferred from the current XML sample. It is a useful starti
 
 ## Choose a Saxon version
 
-Select **Saxon** in the top-right corner to open settings and choose an available Saxon-HE version. Your choice is saved in this browser. The Docker image includes Saxon-HE versions 9.9.1-8, 10.9, 11.7, and 12.5.
+Select **Saxon** in the top-right corner to open settings and choose an available Saxon-HE version. Saxon-HE 10.9 is the default in Frank!Framework and is also the default selected by this tool. Your choice is saved in this browser. The Docker image includes Saxon-HE versions 9.9.1-8, 10.9, 11.7, and 12.5.
 
 ## Image updates
 
