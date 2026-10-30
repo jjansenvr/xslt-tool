@@ -1,0 +1,348 @@
+[
+  {
+    "label": "Single field to single field",
+    "detail": "Velden één-op-één hernoemen",
+    "payload": {
+      "userId": 123,
+      "name": "DataSonnet"
+    },
+    "script": "{\n  \"uid\": payload.userId,\n  \"uname\": payload.name,\n}"
+  },
+  {
+    "label": "Multiple fields to single field",
+    "detail": "Velden combineren met +",
+    "payload": {
+      "userId": 123,
+      "name": "DataSonnet",
+      "number1": 1,
+      "number2": 2,
+      "object1": {
+        "a": 1
+      },
+      "object2": {
+        "b": 2
+      },
+      "array1": [
+        1
+      ],
+      "array2": [
+        2
+      ],
+      "array3": [
+        3
+      ]
+    },
+    "script": "{\n  \"nameId\": payload.name + \" - \" + payload.userId,\n  \"numberPlusString\" : payload.number1 + payload.name,\n  \"stringPlusNumber\" : payload.name + payload.number1,\n  \"numberPlusNumber\" : payload.number1 + payload.number2,\n  \"objects\" : payload.object1 + payload.object2,\n  \"arrays\" : payload.array1 +\n             payload.array2 +\n             payload.array3\n}"
+  },
+  {
+    "label": "Conditional mapping",
+    "detail": "Array splitsen met if in een comprehension",
+    "payload": [
+      {
+        "name": "Joe",
+        "gender": "M",
+        "insurance": true
+      },
+      {
+        "name": "Jane",
+        "gender": "F"
+      }
+    ],
+    "script": "{\n  \"insured\" : [\n    {\n      name: person.name,\n      gender: person.gender\n    }\n    for person in payload\n    if std.objectHas(person, \"insurance\") &&\n       person.insurance == true\n  ],\n  \"uninsured\" : [\n    {\n      name: person.name,\n      gender: person.gender\n    }\n    for person in payload\n    if !std.objectHas(person, \"insurance\") ||\n       person.insurance == false\n  ]\n}"
+  },
+  {
+    "label": "Validation: error",
+    "detail": "Transformatie afbreken met een foutmelding",
+    "payload": {
+      "name": "DataSonnet"
+    },
+    "script": "if std.objectHas(payload, \"name\") then payload.name else error \"name ontbreekt\""
+  },
+  {
+    "label": "Validation: assert",
+    "detail": "Controle op een veld van het resultaat",
+    "payload": {
+      "f": 10
+    },
+    "script": "{\n  f: payload.f,\n  assert self.f == 10 : \"f moet 10 zijn\"\n}"
+  },
+  {
+    "label": "Array index selector",
+    "detail": "Deel van een array selecteren (slice)",
+    "payload": [
+      "a",
+      "b",
+      "c",
+      "d"
+    ],
+    "script": "{\n    slice1: payload[0 : 2],\n    slice2: payload[2 : 2],\n    slice3: payload[1 : 10]\n}"
+  },
+  {
+    "label": "Looping",
+    "detail": "Over een array lopen met for",
+    "payload": [
+      "a",
+      "b",
+      "c"
+    ],
+    "script": "[\n    {\n        letter: x\n    } for x in payload\n]"
+  },
+  {
+    "label": "Looping with index",
+    "detail": "Over een array lopen met index (std.mapWithIndex)",
+    "payload": {
+      "flights": [
+        "KL1001",
+        "KL1002"
+      ]
+    },
+    "script": "std.mapWithIndex(function(index, value)\n                 {\n                     \"index\": index,\n                     \"value\": value\n                 }, payload.flights)"
+  },
+  {
+    "label": "Filter by",
+    "detail": "Array filteren (std.filter)",
+    "payload": [
+      {
+        "name": "Joe",
+        "insurance": true
+      },
+      {
+        "name": "Bob"
+      }
+    ],
+    "script": "local isInsured(person) = std.objectHas(person, \"insurance\") &&\n                          person.insurance == true;\n\n{\n    \"insured\" : std.filter(function(person) isInsured(person), payload)\n}"
+  },
+  {
+    "label": "Order by",
+    "detail": "Array sorteren (std.sort)",
+    "payload": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      1,
+      2
+    ],
+    "script": "std.sort(payload)"
+  },
+  {
+    "label": "Group by",
+    "detail": "Array groeperen (ds.groupBy)",
+    "payload": {
+      "languages": [
+        {
+          "language": {
+            "name": "Java",
+            "version": "1.8"
+          }
+        },
+        {
+          "language": {
+            "name": "Scala",
+            "version": "2.13.0"
+          }
+        },
+        {
+          "language": {
+            "name": "Java",
+            "version": "1.7"
+          }
+        }
+      ]
+    },
+    "script": "{\n  languages: ds.groupBy(payload.languages, function(x) x.language.name),\n}"
+  },
+  {
+    "label": "Distinct by",
+    "detail": "Dubbele waarden verwijderen (ds.distinctBy)",
+    "payload": {
+      "arrayOfLetters": [
+        "a",
+        "c",
+        "b",
+        "a",
+        "d"
+      ],
+      "arrayOfObjects": [
+        {
+          "a": 1
+        },
+        {
+          "a": 1
+        },
+        {
+          "b": 2
+        }
+      ]
+    },
+    "script": "{\n  uniqueLetters: ds.distinctBy(payload.arrayOfLetters, function(x) x),\n  uniqueObjects: ds.distinctBy(payload.arrayOfObjects, function(x) x)\n}"
+  },
+  {
+    "label": "Count",
+    "detail": "Aantal elementen (std.length)",
+    "payload": [
+      "a",
+      "b",
+      "c"
+    ],
+    "script": "{\n  count: std.length(payload)\n}"
+  },
+  {
+    "label": "Array flattening",
+    "detail": "Geneste arrays platslaan (ds.arrays.deepFlatten)",
+    "payload": [
+      [
+        1,
+        [
+          2,
+          [
+            3
+          ]
+        ]
+      ],
+      [
+        4,
+        5
+      ],
+      6,
+      7,
+      {
+        "x": "y"
+      }
+    ],
+    "script": "ds.arrays.deepFlatten(payload)"
+  },
+  {
+    "label": "Sum up numbers in an array",
+    "detail": "Getallen optellen (std.foldl)",
+    "payload": [
+      10,
+      20,
+      28
+    ],
+    "script": "{\n  sum: std.foldl(function(aggregate, num) aggregate + num, payload, 0)\n}"
+  },
+  {
+    "label": "Default values",
+    "detail": "Ontbrekende velden aanvullen",
+    "payload": [
+      {
+        "name": "Jan"
+      },
+      {
+        "company": "WeAreFrank!"
+      }
+    ],
+    "script": "local defaultValues = {\n    \"name\": \"No Name\",\n    \"company\": \"N/A\"\n};\n\nstd.map(function(obj) defaultValues + obj, payload)"
+  },
+  {
+    "label": "Add and subtract dates",
+    "detail": "Periode bij een datum optellen (ds.datetime)",
+    "payload": {},
+    "script": "// Parse a datetime string and add a period\nlocal dt = ds.datetime.parse(\"2019-07-22T21:00:00+00:00\");\ndt.plus(\"P1Y1D\").toISO()"
+  },
+  {
+    "label": "Creating a pivot table",
+    "detail": "Velden van objecten verzamelen in arrays",
+    "payload": [
+      {
+        "name": "Jan",
+        "company": "A"
+      },
+      {
+        "company": "B"
+      }
+    ],
+    "script": "local overlay = {\n  \"name\": \"No Name\",\n  \"company\": \"N/A\"\n};\n\nlocal payloadWithDefaults = std.map(function(obj) overlay + obj, payload);\n\n{\n  names: std.foldl(function(aggregate, obj) aggregate + [obj.name], payloadWithDefaults, []),\n  companies: std.foldl(function(aggregate, obj) aggregate + [obj.company], payloadWithDefaults, []),\n}"
+  },
+  {
+    "label": "Removing fields from object",
+    "detail": "Velden weglaten met een object comprehension",
+    "payload": {
+      "id": 1,
+      "name": "Jan",
+      "photo": "x",
+      "disabled": false
+    },
+    "script": "local removeFields = [ \"photo\", \"generic\", \"disabled\", \"update_whitelist\", \"id\" ];\n\n{\n    [ if std.count(removeFields, k) <= 0 then k else null ] : payload[k]\n    for k in std.objectFields(payload)\n}"
+  },
+  {
+    "label": "Removing fields with ds.remove",
+    "detail": "Velden weglaten (ds.remove)",
+    "payload": {
+      "id": 1,
+      "name": "Jan",
+      "photo": "x",
+      "disabled": false
+    },
+    "script": "ds.remove(payload, [ \"photo\", \"generic\", \"disabled\", \"update_whitelist\", \"id\" ])"
+  },
+  {
+    "label": "Finding if array contains value",
+    "detail": "Zoeken met JSONPath (ds.jsonpath.select)",
+    "payload": {
+      "languages": [
+        {
+          "language": {
+            "name": "Java"
+          }
+        },
+        {
+          "language": {
+            "name": "Scala"
+          }
+        }
+      ]
+    },
+    "script": "local javaLanguages = ds.jsonpath.select(payload, \"$..language[?(@.name == 'Java')]\");\n\nstd.length(javaLanguages) > 0"
+  },
+  {
+    "label": "Merging objects and adding fields",
+    "detail": "Objecten samenvoegen met +",
+    "payload": {
+      "firstName": "Jan",
+      "addresses": [
+        {
+          "city": "Utrecht"
+        }
+      ]
+    },
+    "script": "payload + { \"middleName\": \"NMN\",\n            \"addresses\": [\n              addr + { \"state\": \"CA\" } for addr in payload.addresses\n            ]\n          }"
+  },
+  {
+    "label": "Reading XML",
+    "detail": "XML-payload lezen met namespace-scheiding en tekstsleutel",
+    "payload": "<test:root xmlns:test=\"http://www.modusbox.com\"><test:datasonnet>Hello World</test:datasonnet></test:root>",
+    "inputType": "application/xml",
+    "script": "/** DataSonnet\nversion=2.0\ninput payload application/xml; NamespaceSeparator=\"_\"; TextValueKey=\"__text\"\n*/\n\n{\n  greeting: payload.test_root.test_datasonnet.__text\n}"
+  },
+  {
+    "label": "Writing XML",
+    "detail": "XML-output met namespace en attributen",
+    "payload": {},
+    "outputType": "application/xml",
+    "script": "/** DataSonnet\nversion=2.0\noutput application/xml; NamespaceDeclarations.datasonnet=\"http://www.modusbox.com\"; NamespaceSeparator=\"%\"; TextValueKey=\"__text\"; AttributeCharacter=\"*\"\n*/\n\n{\n    \"datasonnet%root\": {\n        \"*xmlns\": {\n            \"datasonnet\": \"http://www.modusbox.com\"\n        },\n        \"datasonnet%datasonnet\": {\n            \"*version\": \"1.0\",\n            \"__text\": \"Hello World\"\n        }\n    }\n}"
+  },
+  {
+    "label": "Reading CSV",
+    "detail": "CSV met kopregel lezen",
+    "payload": "first_name,last_name,email\nJan,Jansen,jan@example.com",
+    "inputType": "text/csv",
+    "script": "{\n  firstPerson: {\n    firstName: payload[0][\"first_name\"],\n    lastName: payload[0].last_name,\n    email: payload[0].email\n  }\n}"
+  },
+  {
+    "label": "Reading CSV without header",
+    "detail": "CSV zonder kopregel met | als scheidingsteken",
+    "payload": "Jan|Jansen|jan@example.com",
+    "inputType": "text/csv",
+    "script": "/** DataSonnet\nversion=2.0\ninput payload text/csv; UseHeader=false; Separator=\"|\"\n*/\n\n{\n  firstPerson: {\n    firstName: payload[0][0],\n    lastName: payload[0][1],\n    email: payload[0][2]\n  }\n}"
+  },
+  {
+    "label": "Writing CSV",
+    "detail": "CSV-output zonder kopregel met eigen quote en scheidingsteken",
+    "payload": {},
+    "outputType": "text/csv",
+    "script": "/** DataSonnet\nversion=2.0\noutput text/csv; UseHeader=false; Quote=\"'\"; Separator=\"|\"\n*/\n[\n  [\n    \"William\",\n    \"Shakespeare\",\n    \"Hamlet\"\n  ],\n  [\n    \"Christopher\",\n    \"Marlowe\",\n    \"Doctor Faustus\"\n  ]\n]"
+  }
+]

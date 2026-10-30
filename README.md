@@ -138,6 +138,19 @@ The generated XSD is inferred from the current XML sample. It is a useful starti
 
 Select **Saxon** in the top-right corner to open settings and choose an available Saxon-HE version. Saxon-HE 10.9 is the default in Frank!Framework and is also the default selected by this tool. Your choice is saved in this browser. The Docker image includes Saxon-HE versions 9.9.1-8, 10.9, 11.7, and 12.5.
 
+## Tests
+
+The tests run in GitHub Actions on every push and pull request, and a release is only published when they pass.
+
+| Layer | Location | Command | Needs |
+|---|---|---|---|
+| Backend unit tests | `tests/unit` | `pytest tests/unit` | `pip install -r requirements-dev.txt` |
+| Frontend unit tests | `frontend/src/*.test.js` | `npm test` (in `frontend`) | `npm ci` |
+| Integration tests (real Saxon and DataSonnet) | `tests/integration` | `pytest tests/integration` | a running container |
+| End-to-end tests (browser) | `frontend/e2e` | `npx playwright test` (in `frontend`) | a running container, `npx playwright install chromium` |
+
+Start a container for the last two with `docker compose -f docker-compose.build.yml up --build`, or any other way on port 8080. Use `BASE_URL` to test another address, for example `BASE_URL=http://localhost:8081 pytest tests/integration`. The end-to-end tests load the Monaco editor from jsDelivr, so they need internet access.
+
 ## Image updates
 
 The Compose file uses the `latest` image tag. After a new stable GitHub Release is published, update an existing installation with:
