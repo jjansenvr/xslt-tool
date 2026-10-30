@@ -26,14 +26,15 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin: 
 .param-highlight { background: rgba(38, 166, 154, .22); outline: 1px solid #26a69a; }
 .header-status { color: #89d185; font-size: 11px; margin-left: auto; }
 .header-status.err { color: #f48771; }
-.notification { position: fixed; z-index: 1000; top: 58px; left: 50%; display: flex; align-items: flex-start; gap: 10px; width: min(680px, calc(100vw - 32px)); padding: 12px 14px; transform: translateX(-50%); border: 1px solid #555; border-radius: 5px; background: #252526; color: #eee; box-shadow: 0 6px 24px #0009; }
-.notification-ok { border-color: #3b8f58; background: #183527; }
-.notification-err { border-color: #b94a48; background: #3b2020; }
-.notification-info { border-color: #357ca5; background: #1d3340; }
-.notification-icon { flex: 0 0 20px; display: grid; width: 20px; height: 20px; place-items: center; border-radius: 50%; background: #ffffff1a; color: #fff; font-weight: 700; }
-.notification-message { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.notification-close { flex: 0 0 auto; padding: 0 5px; background: transparent; color: #ddd; font-size: 18px; line-height: 20px; }
-.notification-close:hover { background: #ffffff1a; }
+.console { flex: 0 0 30%; display: flex; flex-direction: column; min-height: 110px; border-top: 1px solid #333; }
+.console-lines { flex: 1; overflow: auto; padding: 4px 10px; background: #181818; font: 12px ui-monospace, Consolas, monospace; }
+.console-line { display: flex; gap: 10px; padding: 1px 0; }
+.console-time { flex: 0 0 auto; color: #666; }
+.console-text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #ccc; }
+.console-ok .console-text { color: #89d185; }
+.console-err .console-text { color: #f48771; }
+.console-info .console-text { color: #9cdcfe; }
+.console-message .console-text { color: #dcdcaa; }
 .file-input { display: none; }
 .input-file-select { max-width: 150px; background: #3c3c3c; color: #ddd; border: 1px solid #555; padding: 3px 5px; font: 11px system-ui, sans-serif; }
 label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }

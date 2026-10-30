@@ -80,7 +80,7 @@ Select **Help** in the application header for the interface guide, including tra
 2. Replace the sample stylesheet in **XSLT**, or select **XSLT openen** to load a local `.xsl` or `.xslt` file.
 3. Add, change, or remove stylesheet parameters in the **Parameters** panel. A parameter name should match an `xsl:param` name in your stylesheet. Select the arrow beside a parameter to add it as a global `<xsl:param name="..."/>` declaration to the stylesheet.
 4. Select **Transform** or press **Ctrl+Enter** to run the transformation. The previous output is cleared when a new transformation starts.
-5. Read the result in **Output**. Important success and error messages appear near the top of the screen; XSD validation details stay with the XML panel.
+5. Read the result in **Output**. Success messages, errors, and `xsl:message` output appear in the **Console** below the output; XSD validation details stay with the XML panel.
 
 The tool starts with example XML, an example XSLT 3.0 stylesheet, and a `greeting` parameter so you can try a transformation immediately. You can also paste content directly into either editor.
 
@@ -93,6 +93,37 @@ Right-click a position in the XSLT editor to show the relevant context action: *
 To find a parameter's value, right-click its name (for example `$greeting`) in the XSLT editor and choose **Highlight parameter input**. If the parameter has no matching entry in the Parameters panel, the tool reports whether the XSLT's default value will be used.
 
 Your XML files, active input selection, XSLT, XSD, parameters, and XSD-validation setting are automatically saved in this browser and restored when you return to the same address. This is browser-local storage, so it remains available when the Docker container restarts, but is not shared with other browsers or computers. The transformation output is not saved.
+
+## Debug with xsl:message
+
+The simplest way to see what a stylesheet is doing is to write values to the **Console** with `xsl:message`. The text appears as a yellow line before the "Transformatie geslaagd" line, and the transformation output is not affected.
+
+```xml
+<xsl:message terminate="no">
+  <xsl:value-of select="persoon/achternaam"/>
+</xsl:message>
+```
+
+Use `xsl:value-of` (above) in any stylesheet. In XSLT 3.0 you can instead write the expression in curly braces, but only when text value templates are enabled with `expand-text="yes"` (on `xsl:stylesheet` or on the `xsl:message` itself):
+
+```xml
+<xsl:stylesheet version="3.0" expand-text="yes" ...>
+  ...
+  <xsl:message terminate="no">
+    {persoon/achternaam}
+  </xsl:message>
+```
+
+Without `expand-text="yes"` the braces are not evaluated and the Console shows the literal text `{persoon/achternaam}`.
+
+Tips:
+
+- Add a label to recognise the line: `<xsl:message>achternaam: <xsl:value-of select="persoon/achternaam"/></xsl:message>`.
+- `terminate="no"` (the default) continues after the message. With `terminate="yes"` the transformation stops at that point and the message is shown as an error, which is useful to find out whether a template is reached at all.
+- Place a message in a template or in a `xsl:for-each` to see the value for every element; each call produces its own line.
+- Print `count(...)` or `exists(...)` to check what an XPath expression selects. An empty line means the expression selected nothing.
+- Use **Highlight XML scope** in the XSLT editor to see which XML elements a `select` or `match` expression selects.
+- Remove the messages when you are done: Frank!Framework writes them to its log too.
 
 ## Validate XML with XSD
 

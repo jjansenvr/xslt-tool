@@ -83,30 +83,21 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
       return res.json();
     }
 
+    let lastValidationMessage = '';
     function setStatus(el, text, cls) {
       el.className = 'status ' + (cls || '');
-      const source = el.id || 'app';
-      const isValidationMessage = el.id === 'xsdStatus';
-
-      if (isValidationMessage) {
+      if (el.id === 'xsdStatus') {
+        // Validation runs on every edit; only log it to the console when the result changes.
         el.textContent = text;
-        if (cls !== 'err') {
-          window.dispatchEvent(new CustomEvent('app-notification', {
-            detail: { source, message: '', type: 'info', duration: 0 }
-          }));
-          return;
-        }
+        if (text === lastValidationMessage) return;
+        lastValidationMessage = text;
       } else {
         el.textContent = '';
       }
+      if (!text) return;
 
       window.dispatchEvent(new CustomEvent('app-notification', {
-        detail: {
-          source,
-          message: text,
-          type: cls || 'info',
-          duration: cls === 'ok' ? 4500 : cls === 'err' ? 12000 : 0
-        }
+        detail: { source: el.id || 'app', message: text, type: cls || 'info' }
       }));
     }
 
@@ -788,8 +779,7 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
             detail: {
               source: 'saveStatus',
               message: `Automatisch opslaan is mislukt: ${e.message}`,
-              type: 'err',
-              duration: 12000
+              type: 'err'
             }
           }));
         }
@@ -930,7 +920,7 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
 
       async function run() {
         outEd.setValue('');
-        setStatus($('outStatus'), 'Bezig…');
+        setStatus($('outStatus'), `Transformatie gestart met Saxon-HE ${saxon}…`);
         try {
           const data = await post('/api/transform', { xml: xmlEd.getValue(), xslt: xsltEd.getValue(), params: getParams(), saxon });
           if (data.error) {
@@ -938,7 +928,8 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
             setStatus($('outStatus'), data.error, 'err');
           } else {
             outEd.setValue(data.output);
-            setStatus($('outStatus'), '✓ Transformatie geslaagd' + (data.messages ? '\n' + data.messages : ''), 'ok');
+            if (data.messages) setStatus($('outStatus'), data.messages.trimEnd(), 'message');
+            setStatus($('outStatus'), '✓ Transformatie geslaagd', 'ok');
           }
         } catch (e) {
           setStatus($('outStatus'), e.message, 'err');

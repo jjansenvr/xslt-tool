@@ -1,4 +1,4 @@
-import { DATASONNET_SNIPPETS } from './datasonnet-snippets.js';
+import { DATASONNET_EXAMPLES } from './datasonnet-examples.js';
 import { downloadText } from './download.js';
 
 export function initializeDataSonnetWorkspace() {
@@ -76,12 +76,7 @@ export function initializeDataSonnetWorkspace() {
 
   function setStatus(text, cls) {
     window.dispatchEvent(new CustomEvent('app-notification', {
-      detail: {
-        source: 'outStatus',
-        message: text,
-        type: cls || 'info',
-        duration: cls === 'ok' ? 4500 : cls === 'err' ? 12000 : 0
-      }
+      detail: { source: 'outStatus', message: text, type: cls || 'info' }
     }));
   }
 
@@ -233,40 +228,25 @@ export function initializeDataSonnetWorkspace() {
     let payloadFileName = '';
     let scriptFileName = 'mapping.ds';
 
-    // Runs after a snippet is inserted: loads its example input and selects the media types it needs.
-    function applySnippet(_accessor, index) {
-      const snippet = DATASONNET_SNIPPETS[index];
-      $('inputType').value = snippet.inputType || 'application/json';
+    $('exampleSelect').append(...DATASONNET_EXAMPLES.map((example, index) => {
+      const option = new Option(example.label, index);
+      option.title = example.detail;
+      return option;
+    }));
+    $('exampleSelect').onchange = () => {
+      const example = DATASONNET_EXAMPLES[$('exampleSelect').value];
+      $('exampleSelect').value = '';
+      if (!example) return;
+      $('inputType').value = example.inputType || 'application/json';
       $('inputType').onchange();
-      $('outputType').value = snippet.outputType || 'application/json';
+      $('outputType').value = example.outputType || 'application/json';
       $('outputType').onchange();
       payloadFileName = '';
-      payloadEd.setValue(typeof snippet.payload === 'string' ? snippet.payload : JSON.stringify(snippet.payload, null, 2));
-      setStatus(`Snippet "${snippet.label}" ingevoegd met voorbeeldinput (payload: ${$('inputType').selectedOptions[0].text}, output: ${$('outputType').selectedOptions[0].text}).`, 'ok');
-    }
-    monaco.editor.registerCommand('datasonnet.applySnippet', applySnippet);
-
-    monaco.languages.registerCompletionItemProvider('datasonnet', {
-      provideCompletionItems(model, position) {
-        const word = model.getWordUntilPosition(position);
-        const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
-        return {
-          suggestions: DATASONNET_SNIPPETS.map((snippet, index) => ({
-            label: snippet.label,
-            detail: snippet.detail,
-            documentation: { value: `Voorbeeldinput:\n\n\`\`\`\n${typeof snippet.payload === 'string' ? snippet.payload : JSON.stringify(snippet.payload, null, 2)}\n\`\`\`` },
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            insertText: snippet.insertText,
-            sortText: String(index).padStart(3, '0'),
-            command: { id: 'datasonnet.applySnippet', title: 'Voorbeeldinput laden', arguments: [index] },
-            range
-          }))
-        };
-      }
-    });
-    $('scriptSnippets').onclick = () => {
-      scriptEd.focus();
-      scriptEd.trigger('datasonnet-snippets', 'editor.action.triggerSuggest', {});
+      scriptFileName = 'mapping.ds';
+      payloadEd.setValue(typeof example.payload === 'string' ? example.payload : JSON.stringify(example.payload, null, 2));
+      scriptEd.setValue(example.script);
+      outEd.setValue('');
+      setStatus(`Voorbeeld "${example.label}" geladen: ${example.detail}.`, 'ok');
     };
 
     let payloadContextMenuPosition;
@@ -524,7 +504,7 @@ export function initializeDataSonnetWorkspace() {
 
     async function run() {
       outEd.setValue('');
-      setStatus('Bezig…');
+      setStatus('Transformatie gestart…');
       try {
         const data = await post('/api/datasonnet', {
           payload: payloadEd.getValue(),
@@ -537,7 +517,8 @@ export function initializeDataSonnetWorkspace() {
           setStatus(data.error, 'err');
         } else {
           outEd.setValue(data.output);
-          setStatus('✓ Transformatie geslaagd' + (data.messages ? '\n' + data.messages : ''), 'ok');
+          if (data.messages) setStatus(data.messages.trimEnd(), 'message');
+          setStatus('✓ Transformatie geslaagd', 'ok');
         }
       } catch (e) {
         setStatus(e.message, 'err');

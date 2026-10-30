@@ -87,11 +87,30 @@ function HelpDialog() {
           <li>Plak XML in <strong>Input XML</strong> of kies <strong>XML openen</strong> om een of meer lokale bestanden te laden. Gebruik de keuzelijst om tussen geladen bestanden te wisselen.</li>
           <li>Plak een stylesheet in <strong>XSLT</strong> of kies <strong>XSLT openen</strong> om een lokaal <code>.xsl</code>- of <code>.xslt</code>-bestand te laden.</li>
           <li>Voeg parameters toe met <strong>+</strong>. Vul hun naam en waarde in. De pijl voegt een globale <code>xsl:param</code>-declaratie toe aan de stylesheet.</li>
-          <li>Kies <strong>Transformeren</strong> of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. De vorige output wordt eerst gewist; resultaten en belangrijke meldingen verschijnen bovenin beeld.</li>
+          <li>Kies <strong>Transformeren</strong> of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. De vorige output wordt eerst gewist. Meldingen, fouten en <code>xsl:message</code>-uitvoer verschijnen in de <strong>Console</strong> onder de output; met <strong>Wissen</strong> maak je die leeg.</li>
         </ol>
         <p>Er staan voorbeeld-XML, een XSLT 3.0-stylesheet en de parameter <code>greeting</code> klaar om mee te beginnen.</p>
         <h3>Autocomplete en XSLT-snippets</h3>
         <p>De XML-editor kan element- en attribuutnamen uit de actieve input voorstellen. In de XSLT-editor open je suggesties met <kbd>Ctrl</kbd>+<kbd>Space</kbd> of de knop <strong>Snippets</strong>. Daar vind je veelgebruikte XSLT-elementen, templates en XPath-functies.</p>
+        <h3>Debuggen met xsl:message</h3>
+        <p>Met <code>xsl:message</code> schrijf je waarden naar de <strong>Console</strong> (gele regels), zonder dat de output verandert:</p>
+        <pre>{`<xsl:message terminate="no">
+  <xsl:value-of select="persoon/achternaam"/>
+</xsl:message>`}</pre>
+        <p>In XSLT 3.0 kan het ook met accolades, maar alleen als <code>expand-text="yes"</code> staat (op <code>xsl:stylesheet</code> of op de <code>xsl:message</code> zelf):</p>
+        <pre>{`<xsl:stylesheet version="3.0" expand-text="yes" ...>
+  <xsl:message terminate="no">
+    {persoon/achternaam}
+  </xsl:message>`}</pre>
+        <p>Zonder <code>expand-text="yes"</code> worden de accolades niet uitgerekend en toont de Console letterlijk <code>{'{persoon/achternaam}'}</code>.</p>
+        <ul>
+          <li>Zet er een label voor om de regel te herkennen: <code>{'achternaam: <xsl:value-of .../>'}</code>.</li>
+          <li><code>terminate="yes"</code> stopt de transformatie op die plek en toont de melding als fout. Zo zie je of een template wel wordt bereikt.</li>
+          <li>Een message in een template of <code>xsl:for-each</code> geeft een regel per element.</li>
+          <li>Toon <code>count(...)</code> of <code>exists(...)</code> om te zien wat een XPath selecteert. Een lege regel betekent dat er niets is geselecteerd.</li>
+          <li>Gebruik <strong>Highlight XML scope</strong> om te zien welke XML-elementen een <code>select</code> of <code>match</code> selecteert.</li>
+          <li>Haal de messages weg als je klaar bent: Frank!Framework schrijft ze ook naar het logbestand.</li>
+        </ul>
         <h3>Contextmenu's</h3>
         <ul>
           <li>Rechtsklik in de XML-editor en kies <strong>Copy XPath</strong> om het XPath van de element- of attribuutlocatie te kopiëren. Unieke elementen krijgen geen index. Herhaalde elementen gebruiken waar mogelijk een uniek attribuut, anders een index.</li>
@@ -117,39 +136,37 @@ function HelpDialog() {
   );
 }
 
-function Notifications() {
-  const [notification, setNotification] = useState(null);
-  const timer = useRef(null);
+function Console() {
+  const [lines, setLines] = useState([]);
+  const container = useRef(null);
+  const nextId = useRef(0);
 
   useEffect(() => {
-    function showNotification(event) {
-      const { source, message, type, duration } = event.detail;
-      clearTimeout(timer.current);
-      if (!message) {
-        setNotification(current => current?.source === source ? null : current);
-        return;
-      }
-
-      setNotification({ source, message, type });
-      if (duration > 0) timer.current = setTimeout(() => setNotification(null), duration);
+    function log(event) {
+      const { message, type } = event.detail;
+      if (!message) return;
+      const time = new Date().toLocaleTimeString('nl-NL');
+      setLines(current => [...current.slice(-499), { id: nextId.current++, time, message, type }]);
     }
-
-    window.addEventListener('app-notification', showNotification);
-    return () => {
-      window.removeEventListener('app-notification', showNotification);
-      clearTimeout(timer.current);
-    };
+    window.addEventListener('app-notification', log);
+    return () => window.removeEventListener('app-notification', log);
   }, []);
 
-  if (!notification) return null;
-  const role = notification.type === 'err' ? 'alert' : 'status';
+  useEffect(() => {
+    if (container.current) container.current.scrollTop = container.current.scrollHeight;
+  }, [lines]);
+
   return (
-    <div className={`notification notification-${notification.type}`} role={role} aria-live={role === 'alert' ? 'assertive' : 'polite'}>
-      <span className="notification-icon" aria-hidden="true">
-        {notification.type === 'err' ? '!' : notification.type === 'ok' ? '✓' : '…'}
-      </span>
-      <span className="notification-message">{notification.message}</span>
-      <button className="notification-close" type="button" aria-label="Melding sluiten" onClick={() => setNotification(null)}>×</button>
+    <div className="console">
+      <h2>Console <button className="small" type="button" onClick={() => setLines([])} title="Console leegmaken">Wissen</button></h2>
+      <div className="console-lines" ref={container} role="log" aria-live="polite">
+        {lines.map(line => (
+          <div key={line.id} className={`console-line console-${line.type}`}>
+            <span className="console-time">{line.time}</span>
+            <span className="console-text">{line.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -173,11 +190,11 @@ function Workspace() {
         <section>
           <h2>Output <button className="small" id="saveOutput" title="Output als bestand opslaan">Opslaan</button></h2>
           <div id="output" className="editor" />
-          <div id="outStatus" className="status" />
+          <div id="outStatus" className="hidden" />
+          <Console />
         </section>
       </main>
       <HelpDialog />
-      <Notifications />
     </>
   );
 }
@@ -273,11 +290,12 @@ function DataSonnetHelpDialog() {
           <li>Kies het outputformaat en daarna <strong>Transformeren</strong> of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
         </ol>
         <p>Het formaat van payload en output kies je in de keuzelijsten. Een header in het script, zoals <code>/** DataSonnet version=2.0 input payload text/csv; Separator="|" */</code>, stelt alleen opties in voor het formaat dat al gekozen is; het mediatype in de header moet daarom gelijk zijn aan de keuze in de lijst.</p>
-        <h3>Snippets</h3>
-        <p>Kies <strong>Snippets</strong> of druk in het script op <kbd>Ctrl</kbd>+<kbd>Space</kbd> voor de recepten uit het <a href="https://datasonnet.github.io/datasonnet-mapper/datasonnet/latest/cookbook.html" target="_blank" rel="noreferrer">DataSonnet cookbook</a>. Kies je een recept, dan wordt ook de bijbehorende voorbeeldinput in <strong>Payload</strong> gezet (de huidige payload wordt vervangen) en worden de keuzelijsten voor payload en output op het juiste formaat gezet.</p>
+        <h3>Voorbeelden</h3>
+        <p>Met <strong>Voorbeeld laden…</strong> bij het script kies je een voorbeeld uit het <a href="https://datasonnet.github.io/datasonnet-mapper/datasonnet/latest/cookbook.html" target="_blank" rel="noreferrer">DataSonnet cookbook</a>. Een voorbeeld bestaat uit een payload en een DataSonnet-script die samen werken: beide worden vervangen, de keuzelijsten voor payload en output worden op het juiste formaat gezet en je kunt het voorbeeld direct uitvoeren. Sla je eigen werk eerst op als je het wilt bewaren.</p>
         <h3>Parametertypes</h3>
         <p>Net als de Frank!Framework <code>DataSonnetPipe</code> bepaalt <strong>Automatisch</strong> het type aan de hand van de waarde: begint die met <code>{'{'}</code> of <code>[</code>, dan wordt het JSON; begint die met <code>&lt;</code>, dan XML; anders tekst. Een JSON- of XML-parameter kun je in het script als object gebruiken, bijvoorbeeld <code>klant.naam</code>. Bij XML staat de tekst van een element onder <code>["$"]</code>, bijvoorbeeld <code>klant.root.naam["$"]</code>.</p>
         <p>Kies <strong>JSON</strong> voor getallen en booleans (<code>123</code>, <code>true</code>), <strong>Tekst</strong> om JSON- of XML-achtige waarden juist als string door te geven.</p>
+        <p>Meldingen en fouten verschijnen in de <strong>Console</strong> onder de output; met <strong>Wissen</strong> maak je die leeg.</p>
         <p>Voor XML-output moet het resultaat een object met precies één root-element zijn.</p>
         <h3>Contextmenu's</h3>
         <ul>
@@ -331,7 +349,9 @@ function DataSonnetWorkspace() {
               <button className="small" id="uploadScript" title="DataSonnet-script openen">Script openen</button>
               <input className="file-input" id="scriptFile" type="file" accept=".ds,.jsonnet,.libsonnet,.txt" />
               <button className="small" id="saveScript" title="DataSonnet-script als bestand opslaan">Opslaan</button>
-              <button className="small" id="scriptSnippets" title="Recepten uit het DataSonnet cookbook tonen">Snippets</button>
+              <select className="input-file-select" id="exampleSelect" aria-label="Voorbeeld laden" title="Voorbeeld uit het DataSonnet cookbook laden (vervangt payload en script)" defaultValue="">
+                <option value="" disabled>Voorbeeld laden…</option>
+              </select>
             </span>
           </h2>
           <div id="script" className="editor" />
@@ -345,10 +365,10 @@ function DataSonnetWorkspace() {
             </span>
           </h2>
           <div id="output" className="editor" />
+          <Console />
         </section>
       </main>
       <DataSonnetHelpDialog />
-      <Notifications />
     </>
   );
 }
