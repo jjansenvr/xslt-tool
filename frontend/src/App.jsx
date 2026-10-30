@@ -2,6 +2,11 @@ import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { initializeLegacyWorkspace } from './workspace-controller.js';
 import { initializeDataSonnetWorkspace } from './datasonnet-controller.js';
+import logo from '../F-A-logo_header.png';
+
+function Logo() {
+  return <a href="/" className="logo"><img src={logo} alt="Frank!Academy" /></a>;
+}
 
 function Nav() {
   const isDataSonnet = window.location.pathname === '/datasonnet';
@@ -16,6 +21,7 @@ function Nav() {
 function Header() {
   return (
     <header>
+      <Logo />
       <h1>XSLT Tester</h1>
       <Nav />
       <button id="run">▶ Transformeren</button>
@@ -240,7 +246,7 @@ function SettingsPage() {
 
   return (
     <div className="settings-page">
-      <header><a href="/">← Terug</a><h1>Instellingen</h1></header>
+      <header><Logo /><a href="/">← Terug</a><h1>Instellingen</h1></header>
       <main>
         <h2>Saxon-HE versie voor de mapping</h2>
         <p className="hint">Frank!Framework gebruikt Saxon-HE 10.9 als standaard. Deze tool gebruikt dezelfde versie standaard.</p>
@@ -321,6 +327,7 @@ function DataSonnetWorkspace() {
   return (
     <>
       <header>
+        <Logo />
         <h1>DataSonnet Tester</h1>
         <Nav />
         <button id="run">▶ Transformeren</button>
