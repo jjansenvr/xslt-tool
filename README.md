@@ -20,6 +20,19 @@ docker compose -f docker-compose.build.yml up --build
 
 This builds the `xslt-tool:local` image from the local `Dockerfile` and serves it at [http://localhost:8080](http://localhost:8080). Stop it with `Ctrl+C`, or run `docker compose -f docker-compose.build.yml down`.
 
+## Contribute and release
+
+Work on a feature branch and open a pull request targeting `main`. The test workflow runs for pull requests; merging a pull request to `main` runs the tests again and evaluates the commit messages since the previous release. To require this workflow and prevent direct pushes, enable a branch ruleset for `main` in the repository settings that requires pull requests and the test jobs to pass.
+
+Releases use [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `fix: correct XPath generation` creates a patch release.
+- `feat: add XML comparison` creates a minor release.
+- `feat!: change the parameter format` or a commit with a `BREAKING CHANGE:` footer creates a major release.
+- Other commit types do not create a release unless marked as breaking.
+
+Use a Conventional Commit pull-request title, especially when using squash merges, because the squash commit message determines the release type. After the tests pass, qualifying changes merged to `main` automatically create a GitHub Release with a `v`-prefixed semantic version and publish the matching Docker image to GHCR. A merge with no release-worthy commits does not create a release.
+
 ## Project structure and development
 
 The frontend is a React application built with Vite. The Python backend uses FastAPI and exposes the transformation, Saxon-version, XSD-generation, and XML-validation APIs. The Docker image builds the frontend first and then serves its static bundle alongside the API.
