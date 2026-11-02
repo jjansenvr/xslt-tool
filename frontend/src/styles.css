@@ -15,9 +15,16 @@ button { background: #fdc300; color: #1e1e1e; border: 1px solid #fdc300; padding
 button:hover { background: #ffd740; border-color: #ffd740; }
 button.small { padding: 2px 8px; background: #1e1e1e; color: #fdc300; border: 1px solid #fdc300; font-weight: 500; }
 button.small:hover { background: #fdc300; color: #1e1e1e; }
-main { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; min-height: 0; }
+main { flex: 1 1 0; display: grid; grid-template-columns: var(--cols, repeat(3, minmax(0, 1fr))); min-width: 0; min-height: 0; }
 section { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #333; }
 section:last-child { border-right: 0; }
+section { position: relative; }
+.col-handle { cursor: col-resize; background: #333; touch-action: none; }
+.col-handle:hover { background: #fdc300; }
+.col-toggle { position: absolute; top: 4px; right: 4px; z-index: 5; padding: 0 6px; background: #1e1e1e; color: #fdc300; border: 1px solid #fdc300; font-weight: 500; line-height: 18px; }
+.col-toggle:hover { background: #fdc300; color: #1e1e1e; }
+section.collapsed > :not(.col-toggle) { display: none; }
+section.collapsed .col-toggle { inset: 4px 2px auto 2px; writing-mode: vertical-rl; padding: 6px 0; line-height: 20px; text-transform: uppercase; }
 h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin: 0; padding: 6px 10px; background: #1e1e1e; color: #fff; font-weight: 700; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
 .editor { flex: 1; min-height: 80px; }
 #params { background: #1e1e1e; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; max-height: 30%; overflow: auto; }
@@ -69,10 +76,11 @@ a.settings:hover { text-decoration: underline; text-decoration-color: #fdc300; t
 
 @media (max-width: 1050px) {
   header { gap: 10px; }
+  .col-handle, .col-toggle { display: none; }
   .workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(380px, 1fr) minmax(250px, 36vh); overflow-y: auto; }
-  .workspace > section:first-child { min-height: 0; grid-column: 1; grid-row: 1; }
-  .workspace > section:nth-child(2) { min-height: 0; grid-column: 2; grid-row: 1; }
-  .workspace > section:nth-child(3) { min-height: 0; grid-column: 1 / -1; grid-row: 2; }
+  .workspace > section:nth-of-type(1) { min-height: 0; grid-column: 1; grid-row: 1; }
+  .workspace > section:nth-of-type(2) { min-height: 0; grid-column: 2; grid-row: 1; }
+  .workspace > section:nth-of-type(3) { min-height: 0; grid-column: 1 / -1; grid-row: 2; }
   .workspace > section { min-width: 0; border-bottom: 1px solid #333; }
   .workspace > section:last-child { border-right: 0; }
   .input-file-select { max-width: 110px; }
@@ -84,11 +92,12 @@ a.settings:hover { text-decoration: underline; text-decoration-color: #fdc300; t
   header h1 { width: 100%; }
   #saveStatus { flex: 1; }
   .workspace { display: flex; flex-direction: column; overflow-y: auto; }
-  .workspace > section:first-child { flex: 0 0 auto; min-height: 75vh; }
-  .workspace > section:nth-child(2),
-  .workspace > section:nth-child(3) { flex: 0 0 65vh; min-height: 360px; }
+  .workspace > section:nth-of-type(1) { flex: 0 0 auto; min-height: 75vh; }
+  .workspace > section:nth-of-type(2),
+  .workspace > section:nth-of-type(3) { flex: 0 0 65vh; min-height: 360px; }
   .workspace > section { border-right: 0; }
   .workspace > section:last-child { border-bottom: 0; }
   .input-file-select { max-width: 100px; }
   main h2 > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 }
+section:not(.collapsed) > h2 { padding-right: 36px; }

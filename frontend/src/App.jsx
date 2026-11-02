@@ -177,6 +177,64 @@ function Console() {
   );
 }
 
+function Columns({ titles, children }) {
+  const main = useRef(null);
+  const [widths, setWidths] = useState([1, 1, 1]);
+  const [collapsed, setCollapsed] = useState([false, false, false]);
+
+  function startDrag(index, event) {
+    event.preventDefault();
+    const total = main.current.getBoundingClientRect().width;
+    const startX = event.clientX;
+    const start = widths;
+    const sum = start.reduce((a, b) => a + b, 0);
+    const min = 0.1 * sum;
+    function onMove(e) {
+      const delta = ((e.clientX - startX) / total) * sum;
+      const pair = start[index] + start[index + 1];
+      const left = Math.min(Math.max(start[index] + delta, min), pair - min);
+      setWidths(start.map((w, i) => (i === index ? left : i === index + 1 ? pair - left : w)));
+      setCollapsed(c => c.map((v, i) => (i === index || i === index + 1 ? false : v)));
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  const toggle = index => setCollapsed(c => c.map((v, i) => (i === index ? !v : v)));
+  const template = widths
+    .map((w, i) => (collapsed[i] ? '28px' : `minmax(0, ${w}fr)`))
+    .flatMap((w, i) => (i < 2 ? [w, '6px'] : [w]))
+    .join(' ');
+  const items = React.Children.toArray(children);
+
+  return (
+    <main className="workspace" ref={main} style={{ '--cols': template }}>
+      {items.map((child, i) => (
+        <React.Fragment key={i}>
+          <section className={collapsed[i] ? 'collapsed' : ''}>
+            <button
+              type="button"
+              className="col-toggle"
+              onClick={() => toggle(i)}
+              title={collapsed[i] ? `${titles[i]} uitklappen` : `${titles[i]} inklappen`}
+            >
+              {collapsed[i] ? `» ${titles[i]}` : '«'}
+            </button>
+            {child}
+          </section>
+          {i < items.length - 1 && (
+            <div className="col-handle" role="separator" aria-orientation="vertical" onPointerDown={e => startDrag(i, e)} />
+          )}
+        </React.Fragment>
+      ))}
+    </main>
+  );
+}
+
 function Workspace() {
   useEffect(() => {
     initializeLegacyWorkspace();
@@ -185,21 +243,19 @@ function Workspace() {
   return (
     <>
       <Header />
-      <main className="workspace">
-        <section>
+      <Columns titles={['Input', 'Transform', 'Output']}>
+        <>
           <ParametersPanel />
           <InputPanel />
-        </section>
-        <section>
-          <StylesheetPanel />
-        </section>
-        <section>
+        </>
+        <StylesheetPanel />
+        <>
           <h2>Output <button className="small" id="saveOutput" title="Output als bestand opslaan">Opslaan</button></h2>
           <div id="output" className="editor" />
           <div id="outStatus" className="hidden" />
           <Console />
-        </section>
-      </main>
+        </>
+      </Columns>
       <HelpDialog />
     </>
   );
@@ -335,8 +391,8 @@ function DataSonnetWorkspace() {
         <span id="saveStatus" className="header-status" role="status" />
         <button className="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
       </header>
-      <main className="workspace">
-        <section>
+      <Columns titles={['Input', 'Transform', 'Output']}>
+        <>
           <ParametersPanel />
           <h2>
             Payload
@@ -348,8 +404,8 @@ function DataSonnetWorkspace() {
             </span>
           </h2>
           <div id="payload" className="editor" />
-        </section>
-        <section>
+        </>
+        <>
           <h2>
             DataSonnet
             <span>
@@ -362,8 +418,8 @@ function DataSonnetWorkspace() {
             </span>
           </h2>
           <div id="script" className="editor" />
-        </section>
-        <section>
+        </>
+        <>
           <h2>
             Output
             <span>
@@ -373,8 +429,8 @@ function DataSonnetWorkspace() {
           </h2>
           <div id="output" className="editor" />
           <Console />
-        </section>
-      </main>
+        </>
+      </Columns>
       <DataSonnetHelpDialog />
     </>
   );
