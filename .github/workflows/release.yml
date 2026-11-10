@@ -74,12 +74,12 @@ jobs:
           python-version: "3.12"
 
       - name: Build Windows bundle
-        run: ./packaging/build-windows.ps1
+        run: ./packaging/build-windows.ps1 -Version "${{ github.event.release.tag_name }}"
 
       - name: Start bundle
         shell: pwsh
         run: |
-          $zip = Resolve-Path dist/xslt-tool-windows.zip
+          $zip = Resolve-Path dist/xslt-tool-windows-*.zip
           Expand-Archive $zip "$env:RUNNER_TEMP/bundle"
           $env:NO_BROWSER = "1"
           Start-Process "$env:RUNNER_TEMP/bundle/xslt-tool/start.bat" -WorkingDirectory "$env:RUNNER_TEMP/bundle/xslt-tool" -WindowStyle Hidden
@@ -93,7 +93,14 @@ jobs:
           pip install -r requirements-dev.txt
           pytest tests/integration -v
 
+      - name: Upload bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xslt-tool-windows-${{ github.event.release.tag_name }}
+          path: dist/xslt-tool-windows-*.zip
+          if-no-files-found: error
+
       - name: Attach bundle to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/xslt-tool-windows.zip --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" (Resolve-Path dist/xslt-tool-windows-*.zip) --clobber

@@ -1,7 +1,8 @@
-# Builds dist\xslt-tool-windows.zip. Needs: Node, Maven, a JDK 17 (javac, jlink) and Python 3.
+# Builds dist\xslt-tool-windows-<Version>.zip. Needs: Node, Maven, a JDK 17 (javac, jlink) and Python 3.
 param(
     [string]$PythonVersion = "3.12.8",
-    [string]$SaxonVersions = "9.9.1-8 10.9 11.7 12.5"
+    [string]$SaxonVersions = "9.9.1-8 10.9 11.7 12.5",
+    [string]$Version = "local"
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
@@ -58,5 +59,5 @@ Run python @("-m", "pip", "install", "--no-cache-dir", "--target", "$out\python\
 
 Copy-Item "$PSScriptRoot\start.bat" $out
 
-Compress-Archive -Path $out -DestinationPath (Join-Path $root "dist\xslt-tool-windows.zip")
-Write-Host "Built dist\xslt-tool-windows.zip"
+Compress-Archive -Path $out -DestinationPath (Join-Path $root "dist\xslt-tool-windows-$Version.zip")
+Write-Host "Built dist\xslt-tool-windows-$Version.zip"

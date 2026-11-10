@@ -22,9 +22,9 @@ This builds the `xslt-tool:local` image from the local `Dockerfile` and serves i
 
 ## Run without Docker (Windows)
 
-Download `xslt-tool-windows.zip` from the latest [GitHub Release](../../releases/latest), unzip it, and run `start.bat`. The zip includes Python, Java, Saxon and DataSonnet, so nothing else needs to be installed. The tool opens at [http://localhost:8080](http://localhost:8080); close the console window to stop it. Windows SmartScreen may warn about the unsigned download: right-click the zip, choose **Properties**, and select **Unblock** before unzipping.
+Download `xslt-tool-windows-<version>.zip` from the latest [GitHub Release](../../releases/latest), unzip it, and run `start.bat`. The zip includes Python, Java, Saxon and DataSonnet, so nothing else needs to be installed. The tool opens at [http://localhost:8080](http://localhost:8080); close the console window to stop it. Windows SmartScreen may warn about the unsigned download: right-click the zip, choose **Properties**, and select **Unblock** before unzipping.
 
-To build the zip yourself, install Node, Maven, JDK 17 and Python, then run `./packaging/build-windows.ps1`. The result is `dist/xslt-tool-windows.zip`.
+To build the zip yourself, install Node, Maven, JDK 17 and Python, then run `./packaging/build-windows.ps1`. The result is `dist/xslt-tool-windows-local.zip`; pass `-Version v1.2.3` to change the name.
 
 ## Contribute and release
 
