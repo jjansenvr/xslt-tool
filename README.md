@@ -20,6 +20,12 @@ docker compose -f docker-compose.build.yml up --build
 
 This builds the `xslt-tool:local` image from the local `Dockerfile` and serves it at [http://localhost:8080](http://localhost:8080). Stop it with `Ctrl+C`, or run `docker compose -f docker-compose.build.yml down`.
 
+## Run without Docker (Windows)
+
+Download `xslt-tool-windows.zip` from the latest [GitHub Release](../../releases/latest), unzip it, and run `start.bat`. The zip includes Python, Java, Saxon and DataSonnet, so nothing else needs to be installed. The tool opens at [http://localhost:8080](http://localhost:8080); close the console window to stop it. Windows SmartScreen may warn about the unsigned download: right-click the zip, choose **Properties**, and select **Unblock** before unzipping.
+
+To build the zip yourself, install Node, Maven, JDK 17 and Python, then run `./packaging/build-windows.ps1`. The result is `dist/xslt-tool-windows.zip`.
+
 ## Contribute and release
 
 Work on a feature branch and open a pull request targeting `main`. The test workflow runs for pull requests; merging a pull request to `main` runs the tests again and evaluates the commit messages since the previous release. To require this workflow and prevent direct pushes, enable a branch ruleset for `main` in the repository settings that requires pull requests and the test jobs to pass.

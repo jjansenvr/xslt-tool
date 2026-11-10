@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter
 
 from app.api.models import TransformRequest
-from app.config import DEFAULT_SAXON, SAXON_DIR
+from app.config import DEFAULT_SAXON, JAVA_BIN, SAXON_DIR
 
 
 router = APIRouter()
@@ -37,7 +37,7 @@ def transform(req: TransformRequest):
         xsl_file.write_text(req.xslt, encoding="utf-8")
 
         classpath = str(SAXON_DIR / version / "*")
-        command = ["java", "-cp", classpath, "net.sf.saxon.Transform", f"-s:{xml_file}", f"-xsl:{xsl_file}"]
+        command = [JAVA_BIN, "-cp", classpath, "net.sf.saxon.Transform", f"-s:{xml_file}", f"-xsl:{xsl_file}"]
         command += [f"{param.name.strip()}={param.value}" for param in req.params if param.name.strip()]
         try:
             result = subprocess.run(command, capture_output=True, timeout=60)
