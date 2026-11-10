@@ -84,3 +84,61 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  bundle-windows:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Windows bundle
+        run: ./packaging/build-windows.ps1 -Version "v${{ needs.release.outputs.version }}"
+
+      - name: Start bundle
+        shell: pwsh
+        run: |
+          $zip = Resolve-Path dist/xslt-tool-windows-*.zip
+          Expand-Archive $zip "$env:RUNNER_TEMP/bundle"
+          $env:NO_BROWSER = "1"
+          Start-Process "$env:RUNNER_TEMP/bundle/xslt-tool/start.bat" -WorkingDirectory "$env:RUNNER_TEMP/bundle/xslt-tool" -WindowStyle Hidden
+          for ($i = 0; $i -lt 30; $i++) {
+            try { Invoke-WebRequest http://localhost:8080/api/saxon-versions -UseBasicParsing | Out-Null; exit 0 } catch { Start-Sleep 1 }
+          }
+          exit 1
+
+      - name: Run integration tests against bundle
+        run: |
+          pip install -r requirements-dev.txt
+          pytest tests/integration -v
+
+      - name: Upload bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xslt-tool-windows-v${{ needs.release.outputs.version }}
+          path: dist/xslt-tool-windows-*.zip
+          if-no-files-found: error
+
+      - name: Attach bundle to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v${{ needs.release.outputs.version }}" (Resolve-Path dist/xslt-tool-windows-*.zip) --clobber
