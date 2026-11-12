@@ -2,18 +2,22 @@ import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { initializeLegacyWorkspace } from './workspace-controller.js';
 import { initializeDataSonnetWorkspace } from './datasonnet-controller.js';
+import JsonataWorkspace from './JsonataWorkspace.jsx';
 import logo from '../F-A-logo_header.png';
 
-function Logo() {
+export function Logo() {
   return <a href="/" className="logo"><img src={logo} alt="Frank!Academy" /></a>;
 }
 
-function Nav() {
-  const isDataSonnet = window.location.pathname === '/datasonnet';
+export function Nav() {
+  const path = window.location.pathname;
+  const isDataSonnet = path === '/datasonnet';
+  const isJsonata = path === '/jsonata';
   return (
     <nav className="page-nav">
-      <a href="/" className={isDataSonnet ? '' : 'active'}>XSLT</a>
+      <a href="/" className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
       <a href="/datasonnet" className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
+      <a href="/jsonata" className={isJsonata ? 'active' : ''}>JSONata</a>
     </nav>
   );
 }
@@ -33,7 +37,7 @@ function Header() {
   );
 }
 
-function ParametersPanel() {
+export function ParametersPanel() {
   return (
     <>
       <h2>Parameters <button className="small" id="addParam" title="Parameter toevoegen">+</button></h2>
@@ -142,7 +146,7 @@ function HelpDialog() {
   );
 }
 
-function Console() {
+export function Console() {
   const [lines, setLines] = useState([]);
   const container = useRef(null);
   const nextId = useRef(0);
@@ -177,7 +181,7 @@ function Console() {
   );
 }
 
-function Columns({ titles, children }) {
+export function Columns({ titles, children }) {
   const main = useRef(null);
   const [widths, setWidths] = useState([1, 1, 1]);
   const [collapsed, setCollapsed] = useState([false, false, false]);
@@ -440,5 +444,6 @@ export default function App() {
   const path = window.location.pathname;
   if (['/settings', '/settings.html'].includes(path)) return <SettingsPage />;
   if (path === '/datasonnet') return <DataSonnetWorkspace />;
+  if (path === '/jsonata') return <JsonataWorkspace />;
   return <Workspace />;
 }
