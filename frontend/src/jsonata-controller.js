@@ -1,5 +1,6 @@
 import jsonata from 'jsonata';
 import { downloadText } from './download.js';
+import JSONATA_EXAMPLES from './jsonata-examples.json';
 
 export function initializeJsonataWorkspace() {
   const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
@@ -135,6 +136,25 @@ export function initializeJsonataWorkspace() {
         return;
       }
       downloadText('output.json', output, 'application/json');
+    };
+
+    $('exampleSelect').append(...JSONATA_EXAMPLES.map((example, index) => {
+      const option = new Option(example.label, index);
+      option.title = example.detail;
+      return option;
+    }));
+    $('exampleSelect').onchange = () => {
+      const example = JSONATA_EXAMPLES[$('exampleSelect').value];
+      $('exampleSelect').value = '';
+      if (!example) return;
+      inputFileName = 'input.json';
+      exprFileName = 'expression.jsonata';
+      inputEd.setValue(JSON.stringify(example.input, null, 2));
+      exprEd.setValue(example.expression);
+      outEd.setValue('');
+      $('params').replaceChildren();
+      (example.params || []).forEach(p => addParam(p.name, p.value));
+      setStatus(`Voorbeeld "${example.label}" geladen: ${example.detail}.`, 'ok');
     };
 
     async function run() {

@@ -17,6 +17,7 @@ function JsonataHelpDialog() {
           <li>Voeg parameters toe met <strong>+</strong>. Een parameter is in de expressie beschikbaar als <code>$naam</code>. Een waarde die geldige JSON is wordt als JSON doorgegeven, anders als tekst.</li>
           <li>Kies <strong>Transformeren</strong> of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
         </ol>
+        <p>Met <strong>Voorbeeld laden…</strong> bij de expressie vervang je input, expressie en parameters door een werkend voorbeeld. Sla eigen werk eerst op als je het wilt bewaren.</p>
         <p>Alles wordt in de browser uitgevoerd; er is geen server nodig. Payload, expressie en parameters worden automatisch in deze browser opgeslagen, los van de andere pagina's.</p>
       </div>
     </dialog>
@@ -59,6 +60,9 @@ export default function JsonataWorkspace() {
               <button className="small" id="uploadExpression" title="JSONata-expressie openen">Expressie openen</button>
               <input className="file-input" id="expressionFile" type="file" accept=".jsonata,.txt" />
               <button className="small" id="saveExpression" title="Expressie als bestand opslaan">Opslaan</button>
+              <select className="input-file-select" id="exampleSelect" aria-label="Voorbeeld laden" title="Voorbeeld laden (vervangt input, expressie en parameters)" defaultValue="">
+                <option value="" disabled>Voorbeeld laden…</option>
+              </select>
             </span>
           </h2>
           <div id="expression" className="editor" />
