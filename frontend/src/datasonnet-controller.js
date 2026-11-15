@@ -1,6 +1,7 @@
 import DATASONNET_EXAMPLES from './datasonnet-examples.json';
 import { REFERENCE, jsonPathAt, parseJsonWithPositions, parseReference, resolveReference } from './datasonnet-utils.js';
 import { downloadText } from './download.js';
+import { stateStorage } from './playground.js';
 
 export function initializeDataSonnetWorkspace() {
   const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
@@ -39,7 +40,7 @@ export function initializeDataSonnetWorkspace() {
   let savedState = null;
   let scheduleSave = () => {};
   try {
-    const state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+    const state = JSON.parse(stateStorage().getItem(STATE_KEY) || 'null');
     if (state && typeof state === 'object') savedState = state;
   } catch (e) {
     $('saveStatus').textContent = `Eerder opgeslagen sessie kon niet worden geladen: ${e.message}`;
@@ -272,7 +273,7 @@ export function initializeDataSonnetWorkspace() {
 
     function saveState() {
       try {
-        localStorage.setItem(STATE_KEY, JSON.stringify({
+        stateStorage().setItem(STATE_KEY, JSON.stringify({
           payload: payloadEd.getValue(),
           script: scriptEd.getValue(),
           inputType: $('inputType').value,

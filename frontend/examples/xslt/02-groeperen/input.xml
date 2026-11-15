@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orders>
+  <order customer="Jan" amount="10"/>
+  <order customer="Piet" amount="5"/>
+  <order customer="Jan" amount="7"/>
+</orders>
