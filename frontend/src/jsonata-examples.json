@@ -1,0 +1,63 @@
+[
+  {
+    "label": "Velden selecteren",
+    "detail": "Een pad selecteert waarden uit een array",
+    "input": { "persons": [{ "id": 1, "name": "Jan" }, { "id": 2, "name": "Piet" }] },
+    "expression": "persons.name"
+  },
+  {
+    "label": "Object opnieuw opbouwen",
+    "detail": "Per persoon een nieuw object met hernoemde velden",
+    "input": { "persons": [{ "id": 1, "firstName": "Jan", "lastName": "Jansen" }, { "id": 2, "firstName": "Piet", "lastName": "Pietersen" }] },
+    "expression": "{\n  \"people\": persons.{\n    \"id\": id,\n    \"fullName\": firstName & \" \" & lastName\n  }\n}"
+  },
+  {
+    "label": "Filteren",
+    "detail": "Alleen items die aan een voorwaarde voldoen",
+    "input": { "orders": [{ "id": "A", "total": 25 }, { "id": "B", "total": 120 }, { "id": "C", "total": 80 }] },
+    "expression": "orders[total > 50].id"
+  },
+  {
+    "label": "Sorteren",
+    "detail": "Aflopend sorteren op een veld",
+    "input": { "orders": [{ "id": "A", "total": 25 }, { "id": "B", "total": 120 }, { "id": "C", "total": 80 }] },
+    "expression": "orders^(>total)"
+  },
+  {
+    "label": "Totalen berekenen",
+    "detail": "Aantal, som en gemiddelde met $count, $sum en $average",
+    "input": { "orders": [{ "id": "A", "total": 25 }, { "id": "B", "total": 120 }, { "id": "C", "total": 80 }] },
+    "expression": "{\n  \"count\": $count(orders),\n  \"sum\": $sum(orders.total),\n  \"average\": $average(orders.total)\n}"
+  },
+  {
+    "label": "Groeperen",
+    "detail": "Items groeperen op een sleutel en per groep optellen",
+    "input": { "sales": [{ "country": "NL", "amount": 10 }, { "country": "BE", "amount": 5 }, { "country": "NL", "amount": 7 }] },
+    "expression": "sales{ country: $sum(amount) }"
+  },
+  {
+    "label": "Voorwaarde",
+    "detail": "Waarde bepalen met een ternaire expressie",
+    "input": { "items": [{ "name": "Pen", "stock": 0 }, { "name": "Boek", "stock": 12 }] },
+    "expression": "items.{\n  \"name\": name,\n  \"status\": stock > 0 ? \"op voorraad\" : \"uitverkocht\"\n}"
+  },
+  {
+    "label": "Parameter gebruiken",
+    "detail": "Een parameter is beschikbaar als $naam",
+    "input": { "persons": [{ "id": 1, "name": "Jan" }, { "id": 2, "name": "Piet" }] },
+    "params": [{ "name": "greeting", "value": "Goedemorgen" }],
+    "expression": "persons.{ \"id\": id, \"greeting\": $greeting & \" \" & name }"
+  },
+  {
+    "label": "Eigen functie",
+    "detail": "Een functie definiëren en op elk item toepassen met $map",
+    "input": { "prices": [10, 20, 30] },
+    "expression": "(\n  $withVat := function($p) { $round($p * 1.21, 2) };\n  $map(prices, $withVat)\n)"
+  },
+  {
+    "label": "Platte lijst naar boom",
+    "detail": "Kinderen bij hun ouder zoeken met een variabele",
+    "input": { "parents": [{ "id": 1, "name": "A" }, { "id": 2, "name": "B" }], "children": [{ "parentId": 1, "name": "a1" }, { "parentId": 1, "name": "a2" }, { "parentId": 2, "name": "b1" }] },
+    "expression": "parents.(\n  $id := id;\n  { \"name\": name, \"children\": [$$.children[parentId = $id].name] }\n)"
+  }
+]
