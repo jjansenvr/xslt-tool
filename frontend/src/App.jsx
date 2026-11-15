@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { initializeLegacyWorkspace } from './workspace-controller.js';
 import { initializeDataSonnetWorkspace } from './datasonnet-controller.js';
 import JsonataWorkspace from './JsonataWorkspace.jsx';
+import PlaygroundButton from './PlaygroundButton.jsx';
+import { isPlayground, playgroundHref } from './playground.js';
 import logo from '../F-A-logo_header.png';
 
 export function Logo() {
@@ -15,9 +17,9 @@ export function Nav() {
   const isJsonata = path === '/jsonata';
   return (
     <nav className="page-nav">
-      <a href="/" className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
-      <a href="/datasonnet" className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
-      <a href="/jsonata" className={isJsonata ? 'active' : ''}>JSONata</a>
+      <a href={playgroundHref('/')} className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
+      <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
+      <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>
     </nav>
   );
 }
@@ -31,6 +33,13 @@ function Header() {
       <button id="run">▶ Transformeren</button>
       <span className="hint">Ctrl+Enter</span>
       <span id="saveStatus" className="header-status" role="status" />
+      {!isPlayground() && (
+        <>
+          <button className="small" id="openFolder" title="Map met .xsl- en .xml-bestanden openen en direct bewerken (Chrome/Edge)">📁 Map openen</button>
+          <span id="folderName" className="folder-name" />
+        </>
+      )}
+      <PlaygroundButton />
       <button className="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
       <a href="/settings" className="settings" title="Instellingen">⚙ Saxon <span id="saxonVersion" /></a>
     </header>
@@ -53,12 +62,13 @@ function InputPanel() {
         Input XML
         <span>
           <button className="small" id="uploadXml" title="Een of meer XML-bestanden openen">XML openen</button>
-          <button className="small" id="saveXml" title="Actieve XML-invoer als bestand opslaan">Opslaan</button>
+          <button className="small" id="saveXml" title="Actieve XML-invoer opslaan (naar disk als de map is geopend, anders als download)">Opslaan</button>
           <input className="file-input" id="xmlFile" type="file" accept=".xml,.txt,application/xml,text/xml" multiple />
-          <select className="input-file-select" id="inputFileSelect" aria-label="Actief XML-invoerbestand" />
           <label><input type="checkbox" id="xsdToggle" /> XSD genereren &amp; valideren</label>
         </span>
       </h2>
+      <div id="xmlTabs" className="tabs" role="tablist" aria-label="XML-invoerbestanden" />
+      <div id="xmlBar" className="file-bar" />
       <div id="xml" className="editor" />
       <div id="xsdStatus" className="status" />
       <h2 className="xsd hidden">XSD <button className="small" id="generateXsd" title="XSD opnieuw afleiden uit de input XML">Genereer uit XML</button></h2>
@@ -73,12 +83,19 @@ function StylesheetPanel() {
       <h2>
         XSLT
         <span>
-          <button className="small" id="uploadXslt" title="XSLT-bestand openen">XSLT openen</button>
-          <button className="small" id="saveXslt" title="XSLT als bestand opslaan">Opslaan</button>
-          <input className="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml" />
+          <button className="small" id="uploadXslt" title="Een of meer XSLT-bestanden openen">XSLT openen</button>
+          <button className="small" id="saveXslt" title="Actieve XSLT opslaan (naar disk als de map is geopend, anders als download)">Opslaan</button>
+          <input className="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml" multiple />
           <button className="small" id="xsltSnippets" title="XSLT-elementen en snippets tonen">Snippets</button>
+          {isPlayground() && (
+            <select className="input-file-select" id="exampleSelect" aria-label="Voorbeeld laden" title="Voorbeeld laden (vervangt input, XSLT en parameters)" defaultValue="">
+              <option value="" disabled>Voorbeeld laden…</option>
+            </select>
+          )}
         </span>
       </h2>
+      <div id="xsltTabs" className="tabs" role="tablist" aria-label="XSLT-bestanden" />
+      <div id="xsltBar" className="file-bar" />
       <div id="xslt" className="editor" />
     </>
   );
@@ -393,6 +410,7 @@ function DataSonnetWorkspace() {
         <button id="run">▶ Transformeren</button>
         <span className="hint">Ctrl+Enter</span>
         <span id="saveStatus" className="header-status" role="status" />
+        <PlaygroundButton />
         <button className="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
       </header>
       <Columns titles={['Input', 'Transform', 'Output']}>
@@ -442,6 +460,11 @@ function DataSonnetWorkspace() {
 
 export default function App() {
   const path = window.location.pathname;
+  useEffect(() => {
+    if (!isPlayground()) return;
+    document.body.classList.add('playground');
+    document.title = `${document.title} - Playground`;
+  }, []);
   if (['/settings', '/settings.html'].includes(path)) return <SettingsPage />;
   if (path === '/datasonnet') return <DataSonnetWorkspace />;
   if (path === '/jsonata') return <JsonataWorkspace />;

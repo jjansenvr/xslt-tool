@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { initializeJsonataWorkspace } from './jsonata-controller.js';
+import PlaygroundButton from './PlaygroundButton.jsx';
 import { Columns, Console, Logo, Nav, ParametersPanel } from './App.jsx';
 
 function JsonataHelpDialog() {
@@ -38,6 +39,7 @@ export default function JsonataWorkspace() {
         <button id="run">▶ Transformeren</button>
         <span className="hint">Ctrl+Enter</span>
         <span id="saveStatus" className="header-status" role="status" />
+        <PlaygroundButton />
         <button className="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
       </header>
       <Columns titles={['Input', 'Transform', 'Output']}>

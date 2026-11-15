@@ -117,16 +117,16 @@ test('does not save an empty output', async ({ page }) => {
 });
 
 test('opens XML files, switches between them and saves under the file name', async ({ page }) => {
-  await expect(page.locator('#inputFileSelect')).toBeHidden();
+  await expect(page.locator('#xmlTabs .tab')).toHaveCount(1);
   await page.setInputFiles('#xmlFile', [
     { name: 'eerste.xml', mimeType: 'application/xml', buffer: Buffer.from('<persons><person id="9"><name>Eerste</name></person></persons>') },
     { name: 'tweede.xml', mimeType: 'application/xml', buffer: Buffer.from('<persons><person id="8"><name>Tweede</name></person></persons>') }
   ]);
-  await expect(page.locator('#inputFileSelect')).toBeVisible();
+  await expect(page.locator('#xmlTabs .tab')).toHaveCount(3);
   expect(await getValue(page, 'xml')).toContain('Eerste');
   expect((await download(page, '#saveXml')).name).toBe('eerste.xml');
 
-  await page.selectOption('#inputFileSelect', { label: 'tweede.xml' });
+  await page.locator('#xmlTabs .tab', { hasText: 'tweede.xml' }).click();
   expect(await getValue(page, 'xml')).toContain('Tweede');
 
   await page.click('#run');
