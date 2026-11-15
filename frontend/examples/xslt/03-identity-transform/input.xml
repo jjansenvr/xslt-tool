@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<person id="1">
+  <name>Jan</name>
+  <secret>geheim</secret>
+  <city>Utrecht</city>
+</person>
