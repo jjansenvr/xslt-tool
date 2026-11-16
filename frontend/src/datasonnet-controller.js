@@ -1,3 +1,5 @@
+import { monacoTheme } from './theme.js';
+import { createFileTabs } from './file-tabs.js';
 import DATASONNET_EXAMPLES from './datasonnet-examples.json';
 import { REFERENCE, jsonPathAt, parseJsonWithPositions, parseReference, resolveReference } from './datasonnet-utils.js';
 import { downloadText } from './download.js';
@@ -120,7 +122,7 @@ export function initializeDataSonnetWorkspace() {
     if (typeof savedState?.inputType === 'string') $('inputType').value = savedState.inputType;
     if (typeof savedState?.outputType === 'string') $('outputType').value = savedState.outputType;
 
-    const opts = { theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
+    const opts = { theme: monacoTheme(), automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
     const payloadEd = monaco.editor.create($('payload'), {
       ...opts,
       language: LANGUAGES[$('inputType').value],
@@ -132,6 +134,8 @@ export function initializeDataSonnetWorkspace() {
       value: typeof savedState?.script === 'string' ? savedState.script : SAMPLE_SCRIPT
     });
     const outEd = monaco.editor.create($('output'), { ...opts, language: LANGUAGES[$('outputType').value], value: '', readOnly: true });
+    const payloadTabs = createFileTabs({ container: $('payloadTabs'), editor: payloadEd, saved: savedState?.payloadTabs, label: 'payload', onChange: () => scheduleSave() });
+    const scriptTabs = createFileTabs({ container: $('scriptTabs'), editor: scriptEd, saved: savedState?.scriptTabs, label: 'DataSonnet', onChange: () => scheduleSave() });
 
     function parsePayload() {
       if ($('inputType').value !== 'application/json') throw new Error('Dit werkt alleen bij een JSON-payload.');
@@ -141,9 +145,6 @@ export function initializeDataSonnetWorkspace() {
         throw new Error(`De payload is geen geldige JSON: ${e.message}`);
       }
     }
-
-    let payloadFileName = '';
-    let scriptFileName = 'mapping.ds';
 
     $('exampleSelect').append(...DATASONNET_EXAMPLES.map((example, index) => {
       const option = new Option(example.label, index);
@@ -158,10 +159,8 @@ export function initializeDataSonnetWorkspace() {
       $('inputType').onchange();
       $('outputType').value = example.outputType || 'application/json';
       $('outputType').onchange();
-      payloadFileName = '';
-      scriptFileName = 'mapping.ds';
-      payloadEd.setValue(typeof example.payload === 'string' ? example.payload : JSON.stringify(example.payload, null, 2));
-      scriptEd.setValue(example.script);
+      payloadTabs.reset('', typeof example.payload === 'string' ? example.payload : JSON.stringify(example.payload, null, 2));
+      scriptTabs.reset('', example.script);
       outEd.setValue('');
       setStatus(`Voorbeeld "${example.label}" geladen: ${example.detail}.`, 'ok');
     };
@@ -276,6 +275,8 @@ export function initializeDataSonnetWorkspace() {
         stateStorage().setItem(STATE_KEY, JSON.stringify({
           payload: payloadEd.getValue(),
           script: scriptEd.getValue(),
+          payloadTabs: payloadTabs.getState(),
+          scriptTabs: scriptTabs.getState(),
           inputType: $('inputType').value,
           outputType: $('outputType').value,
           params: getParams()
@@ -314,11 +315,11 @@ export function initializeDataSonnetWorkspace() {
       scheduleSave();
     };
 
-    async function loadFile(input, editor, label) {
+    async function loadFile(input, tabs, label) {
       const file = input.files[0];
       if (!file) return;
       try {
-        editor.setValue(await file.text());
+        tabs.add(file.name, await file.text());
         setStatus(`${label} geladen: ${file.name}`, 'ok');
       } catch (e) {
         setStatus(`Bestand kon niet worden gelezen: ${e.message}`, 'err');
@@ -329,20 +330,18 @@ export function initializeDataSonnetWorkspace() {
     $('uploadPayload').onclick = () => $('payloadFile').click();
     $('uploadScript').onclick = () => $('scriptFile').click();
     $('payloadFile').onchange = () => {
-      if ($('payloadFile').files[0]) payloadFileName = $('payloadFile').files[0].name;
-      loadFile($('payloadFile'), payloadEd, 'Payload');
+      loadFile($('payloadFile'), payloadTabs, 'Payload');
     };
     $('scriptFile').onchange = () => {
-      if ($('scriptFile').files[0]) scriptFileName = $('scriptFile').files[0].name;
-      loadFile($('scriptFile'), scriptEd, 'DataSonnet-script');
+      loadFile($('scriptFile'), scriptTabs, 'DataSonnet-script');
     };
 
     const EXTENSIONS = { 'application/json': 'json', 'application/xml': 'xml', 'text/csv': 'csv', 'application/x-yaml': 'yaml', 'text/plain': 'txt' };
     $('savePayload').onclick = () => {
       const type = $('inputType').value;
-      downloadText(payloadFileName || `payload.${EXTENSIONS[type]}`, payloadEd.getValue(), type);
+      downloadText(payloadTabs.activeName() || `payload.${EXTENSIONS[type]}`, payloadEd.getValue(), type);
     };
-    $('saveScript').onclick = () => downloadText(scriptFileName, scriptEd.getValue());
+    $('saveScript').onclick = () => downloadText(scriptTabs.activeName() || 'mapping.ds', scriptEd.getValue());
     $('saveOutput').onclick = () => {
       const output = outEd.getValue();
       if (!output) {

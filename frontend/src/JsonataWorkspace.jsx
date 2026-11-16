@@ -53,6 +53,7 @@ export default function JsonataWorkspace() {
               <input className="file-input" id="inputFile" type="file" accept=".json,.txt,application/json" />
             </span>
           </h2>
+          <div id="inputTabs" className="tabs" role="tablist" aria-label="Inputbestanden" />
           <div id="input" className="editor" />
         </>
         <>
@@ -67,6 +68,7 @@ export default function JsonataWorkspace() {
               </select>
             </span>
           </h2>
+          <div id="expressionTabs" className="tabs" role="tablist" aria-label="Expressiebestanden" />
           <div id="expression" className="editor" />
         </>
         <>

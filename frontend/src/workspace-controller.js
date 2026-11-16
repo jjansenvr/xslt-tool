@@ -1,3 +1,4 @@
+import { monacoTheme } from './theme.js';
 import { downloadText } from './download.js';
 import { isPlayground, stateStorage } from './playground.js';
 import { createFile, folderSupported, openFolder, writeFile } from './xslt-folder.js';
@@ -113,7 +114,7 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
     $('addParam').onclick = () => addParam();
 
     require(['vs/editor/editor.main'], () => {
-      const opts = { language: 'xml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
+      const opts = { language: 'xml', theme: monacoTheme(), automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
       const xmlEd = monaco.editor.create($('xml'), { ...opts, value: typeof savedState?.xml === 'string' ? savedState.xml : SAMPLE_XML });
       const xsltEd = monaco.editor.create($('xslt'), { ...opts, value: typeof savedState?.xslt === 'string' ? savedState.xslt : SAMPLE_XSLT });
       const xsdEd = monaco.editor.create($('xsd'), { ...opts, value: typeof savedState?.xsd === 'string' ? savedState.xsd : '' });

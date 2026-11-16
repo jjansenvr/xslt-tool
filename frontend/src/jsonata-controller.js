@@ -1,3 +1,5 @@
+import { monacoTheme } from './theme.js';
+import { createFileTabs } from './file-tabs.js';
 import jsonata from 'jsonata';
 import { downloadText } from './download.js';
 import { stateStorage } from './playground.js';
@@ -67,7 +69,7 @@ export function initializeJsonataWorkspace() {
   $('addParam').onclick = () => addParam();
 
   require(['vs/editor/editor.main'], () => {
-    const opts = { theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
+    const opts = { theme: monacoTheme(), automaticLayout: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false };
     const inputEd = monaco.editor.create($('input'), {
       ...opts, language: 'json', value: typeof savedState?.input === 'string' ? savedState.input : SAMPLE_INPUT
     });
@@ -75,11 +77,13 @@ export function initializeJsonataWorkspace() {
       ...opts, language: 'plaintext', value: typeof savedState?.expression === 'string' ? savedState.expression : SAMPLE_EXPRESSION
     });
     const outEd = monaco.editor.create($('output'), { ...opts, language: 'json', value: '', readOnly: true });
+    const inputTabs = createFileTabs({ container: $('inputTabs'), editor: inputEd, saved: savedState?.inputTabs, label: 'JSON', onChange: () => scheduleSave() });
+    const exprTabs = createFileTabs({ container: $('expressionTabs'), editor: exprEd, saved: savedState?.expressionTabs, label: 'JSONata', onChange: () => scheduleSave() });
 
     function saveState() {
       try {
         stateStorage().setItem(STATE_KEY, JSON.stringify({
-          input: inputEd.getValue(), expression: exprEd.getValue(), params: getParams()
+          input: inputEd.getValue(), expression: exprEd.getValue(), inputTabs: inputTabs.getState(), expressionTabs: exprTabs.getState(), params: getParams()
         }));
         $('saveStatus').textContent = 'Automatisch opgeslagen';
         $('saveStatus').classList.remove('err');
@@ -104,11 +108,11 @@ export function initializeJsonataWorkspace() {
       });
     }
 
-    async function loadFile(input, editor, label) {
+    async function loadFile(input, tabs, label) {
       const file = input.files[0];
       if (!file) return;
       try {
-        editor.setValue(await file.text());
+        tabs.add(file.name, await file.text());
         setStatus(`${label} geladen: ${file.name}`, 'ok');
       } catch (e) {
         setStatus(`Bestand kon niet worden gelezen: ${e.message}`, 'err');
@@ -116,20 +120,16 @@ export function initializeJsonataWorkspace() {
         input.value = '';
       }
     }
-    let inputFileName = 'input.json';
-    let exprFileName = 'expression.jsonata';
     $('uploadInput').onclick = () => $('inputFile').click();
     $('uploadExpression').onclick = () => $('expressionFile').click();
     $('inputFile').onchange = () => {
-      if ($('inputFile').files[0]) inputFileName = $('inputFile').files[0].name;
-      loadFile($('inputFile'), inputEd, 'Input');
+      loadFile($('inputFile'), inputTabs, 'Input');
     };
     $('expressionFile').onchange = () => {
-      if ($('expressionFile').files[0]) exprFileName = $('expressionFile').files[0].name;
-      loadFile($('expressionFile'), exprEd, 'JSONata-expressie');
+      loadFile($('expressionFile'), exprTabs, 'JSONata-expressie');
     };
-    $('saveInput').onclick = () => downloadText(inputFileName, inputEd.getValue(), 'application/json');
-    $('saveExpression').onclick = () => downloadText(exprFileName, exprEd.getValue());
+    $('saveInput').onclick = () => downloadText(inputTabs.activeName() || 'input.json', inputEd.getValue(), 'application/json');
+    $('saveExpression').onclick = () => downloadText(exprTabs.activeName() || 'expression.jsonata', exprEd.getValue());
     $('saveOutput').onclick = () => {
       const output = outEd.getValue();
       if (!output) {
@@ -148,10 +148,8 @@ export function initializeJsonataWorkspace() {
       const example = JSONATA_EXAMPLES[$('exampleSelect').value];
       $('exampleSelect').value = '';
       if (!example) return;
-      inputFileName = 'input.json';
-      exprFileName = 'expression.jsonata';
-      inputEd.setValue(JSON.stringify(example.input, null, 2));
-      exprEd.setValue(example.expression);
+      inputTabs.reset('', JSON.stringify(example.input, null, 2));
+      exprTabs.reset('', example.expression);
       outEd.setValue('');
       $('params').replaceChildren();
       (example.params || []).forEach(p => addParam(p.name, p.value));
