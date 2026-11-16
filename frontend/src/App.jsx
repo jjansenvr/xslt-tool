@@ -5,10 +5,26 @@ import { initializeDataSonnetWorkspace } from './datasonnet-controller.js';
 import JsonataWorkspace from './JsonataWorkspace.jsx';
 import PlaygroundButton from './PlaygroundButton.jsx';
 import { isPlayground, playgroundHref } from './playground.js';
+import { getTheme, setTheme } from './theme.js';
 import logo from '../F-A-logo_header.png';
 
 export function Logo() {
   return <a href="/" className="logo"><img src={logo} alt="Frank!Academy" /></a>;
+}
+
+function ThemeToggle() {
+  const [theme, setThemeState] = useState(getTheme());
+  const next = theme === 'light' ? 'dark' : 'light';
+  return (
+    <button
+      className="small theme-toggle"
+      type="button"
+      title={next === 'light' ? 'Light mode' : 'Dark mode'}
+      onClick={() => { setTheme(next); setThemeState(next); }}
+    >
+      {theme === 'light' ? '🌙' : '☀'}
+    </button>
+  );
 }
 
 export function Nav() {
@@ -16,11 +32,14 @@ export function Nav() {
   const isDataSonnet = path === '/datasonnet';
   const isJsonata = path === '/jsonata';
   return (
-    <nav className="page-nav">
-      <a href={playgroundHref('/')} className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
-      <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
-      <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>
-    </nav>
+    <>
+      <nav className="page-nav">
+        <a href={playgroundHref('/')} className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
+        <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
+        <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>
+      </nav>
+      <ThemeToggle />
+    </>
   );
 }
 
@@ -86,7 +105,7 @@ function StylesheetPanel() {
           <button className="small" id="uploadXslt" title="Een of meer XSLT-bestanden openen">XSLT openen</button>
           <button className="small" id="saveXslt" title="Actieve XSLT opslaan (naar disk als de map is geopend, anders als download)">Opslaan</button>
           <input className="file-input" id="xsltFile" type="file" accept=".xsl,.xslt,.xml,application/xml,text/xml" multiple />
-          <button className="small" id="xsltSnippets" title="XSLT-elementen en snippets tonen">Snippets</button>
+          <button className="small" id="xsltSnippets" title="XSLT-elementen en XPath-functies tonen">Elementen &amp; functies</button>
           {isPlayground() && (
             <select className="input-file-select" id="exampleSelect" aria-label="Voorbeeld laden" title="Voorbeeld laden (vervangt input, XSLT en parameters)" defaultValue="">
               <option value="" disabled>Voorbeeld laden…</option>
@@ -118,7 +137,7 @@ function HelpDialog() {
         </ol>
         <p>Er staan voorbeeld-XML, een XSLT 3.0-stylesheet en de parameter <code>greeting</code> klaar om mee te beginnen.</p>
         <h3>Autocomplete en XSLT-snippets</h3>
-        <p>De XML-editor kan element- en attribuutnamen uit de actieve input voorstellen. In de XSLT-editor open je suggesties met <kbd>Ctrl</kbd>+<kbd>Space</kbd> of de knop <strong>Snippets</strong>. Daar vind je veelgebruikte XSLT-elementen, templates en XPath-functies.</p>
+        <p>De XML-editor kan element- en attribuutnamen uit de actieve input voorstellen. In de XSLT-editor open je suggesties met <kbd>Ctrl</kbd>+<kbd>Space</kbd> of de knop <strong>Elementen &amp; functies</strong>. Daar vind je veelgebruikte XSLT-elementen, templates en XPath-functies.</p>
         <h3>Debuggen met xsl:message</h3>
         <p>Met <code>xsl:message</code> schrijf je waarden naar de <strong>Console</strong> (gele regels), zonder dat de output verandert:</p>
         <pre>{`<xsl:message terminate="no">
@@ -425,6 +444,7 @@ function DataSonnetWorkspace() {
               <MediaTypeSelect id="inputType" label="Formaat van de payload" defaultValue="application/json" />
             </span>
           </h2>
+          <div id="payloadTabs" className="tabs" role="tablist" aria-label="Payloadbestanden" />
           <div id="payload" className="editor" />
         </>
         <>
@@ -439,6 +459,7 @@ function DataSonnetWorkspace() {
               </select>
             </span>
           </h2>
+          <div id="scriptTabs" className="tabs" role="tablist" aria-label="Scriptbestanden" />
           <div id="script" className="editor" />
         </>
         <>
