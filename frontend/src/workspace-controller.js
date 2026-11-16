@@ -1,4 +1,7 @@
 import { downloadText } from './download.js';
+import { isPlayground, stateStorage } from './playground.js';
+import { createFile, folderSupported, openFolder, writeFile } from './xslt-folder.js';
+import { XSLT_EXAMPLES } from './xslt-examples.js';
 import { XSLT_NS, buildParamInsertion, getElementSourceRanges, getXPathAt } from './xml-utils.js';
 
 export function initializeLegacyWorkspace() {
@@ -37,7 +40,7 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
     let scheduleSave = () => {};
     let addXsltParam = () => { throw new Error('De XSLT-editor wordt nog geladen.'); };
     try {
-      const state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+      const state = JSON.parse(stateStorage().getItem(STATE_KEY) || 'null');
       if (state && typeof state === 'object') savedState = state;
     } catch (e) {
       $('saveStatus').textContent = `Eerder opgeslagen sessie kon niet worden geladen: ${e.message}`;
@@ -513,9 +516,11 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
         }
       });
 
-      let inputFiles = Array.isArray(savedState?.inputFiles)
-        ? savedState.inputFiles.filter(file => file && typeof file.id === 'string' && typeof file.name === 'string' && typeof file.content === 'string')
-        : [];
+      let folder = null; // geopende map op disk (alleen reguliere editor)
+      const validFiles = list => (Array.isArray(list)
+        ? list.filter(file => file && typeof file.id === 'string' && typeof file.name === 'string' && typeof file.content === 'string')
+        : []);
+      let inputFiles = validFiles(savedState?.inputFiles);
       if (!inputFiles.length) {
         inputFiles = [{
           id: 'default-input',
@@ -526,39 +531,95 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
       let activeInputId = inputFiles.some(file => file.id === savedState?.activeInputId)
         ? savedState.activeInputId
         : inputFiles[0].id;
+      let xsltFiles = validFiles(savedState?.xsltFiles);
+      if (!xsltFiles.length) xsltFiles = [{ id: 'default-xslt', name: 'transform.xsl', content: xsltEd.getValue() }];
+      let activeXsltId = xsltFiles.some(file => file.id === savedState?.activeXsltId)
+        ? savedState.activeXsltId
+        : xsltFiles[0].id;
       const activeInput = () => inputFiles.find(file => file.id === activeInputId);
+      const activeXslt = () => xsltFiles.find(file => file.id === activeXsltId);
       xmlEd.setValue(activeInput().content);
+      xsltEd.setValue(activeXslt().content);
       $('xsdToggle').checked = savedState?.xsdEnabled === true;
       document.querySelectorAll('.xsd').forEach(el => el.classList.toggle('hidden', !$('xsdToggle').checked));
 
-      function updateInputSelector() {
-        const select = $('inputFileSelect');
-        select.replaceChildren(...inputFiles.map(file => {
-          const option = document.createElement('option');
-          option.value = file.id;
-          option.textContent = file.name;
-          return option;
-        }));
-        select.value = activeInputId;
-        select.hidden = inputFiles.length < 2;
+      // Bestanden met een `disk`-eigenschap zijn gekoppeld aan een bestand in de geopende map.
+      const isDirty = (file, content) => !!file.disk && file.disk.saved !== content;
+      const isDefault = file => file.id.startsWith('default-');
+
+      function renderTabs(containerId, files, activeId, editor, isXslt) {
+        const container = $(containerId);
+        const tabs = files.map(file => {
+          const content = file.id === activeId ? editor.getValue() : file.content;
+          const dirty = isDirty(file, content);
+          const tab = document.createElement('div');
+          tab.className = `tab${file.id === activeId ? ' active' : ''}${dirty ? ' dirty' : ''}`;
+          tab.setAttribute('role', 'tab');
+          tab.setAttribute('aria-selected', String(file.id === activeId));
+          tab.title = file.disk ? `${file.disk.folder}/${file.name}${dirty ? ' (niet opgeslagen)' : ''}` : `${file.name} (alleen in de browser)`;
+          const name = document.createElement('span');
+          name.className = 'tab-name';
+          name.textContent = `${dirty ? '● ' : ''}${file.disk ? '📁 ' : ''}${isDefault(file) ? 'naamloos' : file.name}`;
+          const close = document.createElement('button');
+          close.className = 'tab-close';
+          close.type = 'button';
+          close.title = 'Bestand sluiten';
+          close.setAttribute('aria-label', `${file.name} sluiten`);
+          close.textContent = '×';
+          close.onclick = event => { event.stopPropagation(); closeFile(isXslt, file.id); };
+          tab.onclick = () => { if (file.id !== activeId) activateFile(isXslt, file.id); };
+          tab.append(name, close);
+          return tab;
+        });
+        const add = document.createElement('button');
+        add.className = 'tab-new';
+        add.type = 'button';
+        add.title = folder ? `Nieuw ${isXslt ? 'XSLT' : 'XML'}-bestand in de geopende map` : `Nieuw ${isXslt ? 'XSLT' : 'XML'}-bestand (alleen in de browser)`;
+        add.setAttribute('aria-label', add.title);
+        add.textContent = '+';
+        add.onclick = () => newFile(isXslt);
+        container.replaceChildren(...tabs, add);
+      }
+      function updateBar(barId, file, editor) {
+        const bar = $(barId);
+        const name = isDefault(file) ? 'Naamloos' : file.name;
+        if (isPlayground()) {
+          bar.textContent = `Playground — ${name} · wordt niet bewaard, Opslaan downloadt het bestand`;
+          bar.className = 'file-bar';
+        } else if (file.disk) {
+          const dirty = isDirty(file, editor.getValue());
+          bar.textContent = `Op disk: ${file.disk.folder}/${file.name} · ${dirty ? '● niet opgeslagen' : 'opgeslagen'}`;
+          bar.className = `file-bar ${dirty ? 'dirty' : 'disk'}`;
+        } else {
+          bar.textContent = `${name} · alleen in de browser, niet gekoppeld aan disk`;
+          bar.className = 'file-bar';
+        }
+      }
+      function updateBars() {
+        renderTabs('xmlTabs', inputFiles, activeInputId, xmlEd, false);
+        renderTabs('xsltTabs', xsltFiles, activeXsltId, xsltEd, true);
+        updateBar('xmlBar', activeInput(), xmlEd);
+        updateBar('xsltBar', activeXslt(), xsltEd);
       }
       function rememberActiveInput() {
-        const file = activeInput();
-        if (file) file.content = xmlEd.getValue();
+        activeInput().content = xmlEd.getValue();
+        activeXslt().content = xsltEd.getValue();
       }
-      updateInputSelector();
+      updateBars();
 
       function saveState() {
         try {
           rememberActiveInput();
-          localStorage.setItem(STATE_KEY, JSON.stringify({
+          stateStorage().setItem(STATE_KEY, JSON.stringify({
             xml: xmlEd.getValue(),
             xslt: xsltEd.getValue(),
             xsd: xsdEd.getValue(),
             params: getParams(),
             xsdEnabled: $('xsdToggle').checked,
-            inputFiles,
-            activeInputId
+            inputFiles: inputFiles.map(({ id, name, content }) => ({ id, name, content })),
+            activeInputId,
+            xsltFiles: xsltFiles.map(({ id, name, content }) => ({ id, name, content })),
+            activeXsltId
           }));
           $('saveStatus').textContent = 'Automatisch opgeslagen';
           $('saveStatus').classList.remove('err');
@@ -581,6 +642,7 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
         saveTimer = setTimeout(saveState, 300);
       };
       [xmlEd, xsltEd, xsdEd].forEach(editor => editor.onDidChangeModelContent(scheduleSave));
+      [xmlEd, xsltEd].forEach(editor => editor.onDidChangeModelContent(updateBars));
       window.addEventListener('pagehide', saveState);
       if (savedState) $('saveStatus').textContent = 'Vorige sessie hersteld';
       else addParam('greeting', 'Goedemorgen');
@@ -591,13 +653,45 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
         });
       }
 
-      $('inputFileSelect').onchange = () => {
+      function activateFile(isXslt, id) {
         rememberActiveInput();
-        activeInputId = $('inputFileSelect').value;
-        xmlEd.setValue(activeInput().content);
+        if (isXslt) {
+          activeXsltId = id;
+          xsltEd.setValue(activeXslt().content);
+        } else {
+          activeInputId = id;
+          xmlEd.setValue(activeInput().content);
+          if ($('xsdToggle').checked) validate();
+        }
+        updateBars();
         scheduleSave();
-        if ($('xsdToggle').checked) validate();
-      };
+      }
+
+      function closeFile(isXslt, id) {
+        const files = isXslt ? xsltFiles : inputFiles;
+        if (files.length < 2) {
+          setStatus($('outStatus'), 'Het laatste bestand kan niet worden gesloten.', 'err');
+          return;
+        }
+        rememberActiveInput();
+        const file = files.find(item => item.id === id);
+        if (isDirty(file, file.content) && !confirm(`${file.name} heeft niet-opgeslagen wijzigingen. Toch sluiten?`)) return;
+        const index = files.indexOf(file);
+        files.splice(index, 1);
+        if ((isXslt ? activeXsltId : activeInputId) === id) {
+          const next = files[Math.min(index, files.length - 1)];
+          if (isXslt) {
+            activeXsltId = next.id;
+            xsltEd.setValue(next.content);
+          } else {
+            activeInputId = next.id;
+            xmlEd.setValue(next.content);
+            if ($('xsdToggle').checked) validate();
+          }
+        }
+        updateBars();
+        scheduleSave();
+      }
 
       addXsltParam = function(name) {
         const result = buildParamInsertion(xsltEd.getValue(), name);
@@ -614,34 +708,24 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
         setStatus($('outStatus'), `Globale parameter "${name}" toegevoegd aan de XSLT.`, 'ok');
       };
 
-      async function loadFile(input, editor, label) {
-        const file = input.files[0];
-        if (!file) return;
-        try {
-          editor.setValue(await file.text());
-          setStatus($('outStatus'), `${label} geladen: ${file.name}`, 'ok');
-        } catch (e) {
-          setStatus($('outStatus'), `Bestand kon niet worden gelezen: ${e.message}`, 'err');
-        } finally {
-          input.value = '';
-        }
+      async function readUploads(input) {
+        return Promise.all([...input.files].map(async file => ({
+          id: `file-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name: file.name,
+          content: await file.text()
+        })));
       }
       $('uploadXml').onclick = () => $('xmlFile').click();
       $('uploadXslt').onclick = () => $('xsltFile').click();
       $('xmlFile').onchange = async () => {
-        const files = [...$('xmlFile').files];
-        if (!files.length) return;
         try {
-          const loaded = await Promise.all(files.map(async file => ({
-            id: `input-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            name: file.name,
-            content: await file.text()
-          })));
+          const loaded = await readUploads($('xmlFile'));
+          if (!loaded.length) return;
           rememberActiveInput();
           inputFiles.push(...loaded);
           activeInputId = loaded[0].id;
           xmlEd.setValue(loaded[0].content);
-          updateInputSelector();
+          updateBars();
           scheduleSave();
           if ($('xsdToggle').checked) validate();
           setStatus($('outStatus'), `${loaded.length} XML-bestand${loaded.length === 1 ? '' : 'en'} geladen.`, 'ok');
@@ -651,17 +735,155 @@ const MONACO = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
           $('xmlFile').value = '';
         }
       };
-      let xsltFileName = 'transform.xsl';
-      $('xsltFile').onchange = () => {
-        if ($('xsltFile').files[0]) xsltFileName = $('xsltFile').files[0].name;
-        loadFile($('xsltFile'), xsltEd, 'XSLT');
+      $('xsltFile').onchange = async () => {
+        try {
+          const loaded = await readUploads($('xsltFile'));
+          if (!loaded.length) return;
+          rememberActiveInput();
+          xsltFiles.push(...loaded);
+          activeXsltId = loaded[0].id;
+          xsltEd.setValue(loaded[0].content);
+          updateBars();
+          scheduleSave();
+          setStatus($('outStatus'), `${loaded.length} XSLT-bestand${loaded.length === 1 ? '' : 'en'} geladen.`, 'ok');
+        } catch (e) {
+          setStatus($('outStatus'), `XSLT-bestand kon niet worden gelezen: ${e.message}`, 'err');
+        } finally {
+          $('xsltFile').value = '';
+        }
       };
 
-      $('saveXml').onclick = () => {
-        const name = activeInput().id === 'default-input' ? 'input.xml' : activeInput().name;
-        downloadText(name, xmlEd.getValue(), 'application/xml');
-      };
-      $('saveXslt').onclick = () => downloadText(xsltFileName, xsltEd.getValue(), 'application/xml');
+      // Opslaan: naar disk als het bestand uit de geopende map komt, anders als download.
+      async function saveActive(file, editor, fallbackName) {
+        const content = editor.getValue();
+        if (!file.disk) {
+          downloadText(isDefault(file) ? fallbackName : file.name, content, 'application/xml');
+          return;
+        }
+        try {
+          await writeFile(file.disk.handle, content);
+          file.disk.saved = content;
+          file.content = content;
+          updateBars();
+          setStatus($('outStatus'), `Opgeslagen naar disk: ${file.disk.folder}/${file.name}`, 'ok');
+        } catch (e) {
+          setStatus($('outStatus'), `Opslaan naar disk is mislukt: ${e.message}`, 'err');
+        }
+      }
+      $('saveXml').onclick = () => saveActive(activeInput(), xmlEd, 'input.xml');
+      $('saveXslt').onclick = () => saveActive(activeXslt(), xsltEd, 'transform.xsl');
+      xmlEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => $('saveXml').click());
+      xsltEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => $('saveXslt').click());
+
+      // Map op disk (alleen reguliere editor)
+      const diskFile = (name, content, handle) => ({
+        id: `disk-${folder.name}-${name}`,
+        name,
+        content,
+        disk: { handle, folder: folder.name, saved: content }
+      });
+      const NEW_XSLT = '<?xml version="1.0" encoding="UTF-8"?>\n<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">\n  <xsl:output method="xml" indent="yes"/>\n\n</xsl:stylesheet>\n';
+      const NEW_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<root/>\n';
+      function addFileEntry(isXslt, file) {
+        rememberActiveInput();
+        if (isXslt) {
+          xsltFiles.push(file);
+          activeXsltId = file.id;
+          xsltEd.setValue(file.content);
+        } else {
+          inputFiles.push(file);
+          activeInputId = file.id;
+          xmlEd.setValue(file.content);
+        }
+        updateBars();
+        scheduleSave();
+      }
+      // Met een geopende map wordt het bestand op disk aangemaakt, anders alleen in de browser.
+      async function newFile(isXslt) {
+        const content = isXslt ? NEW_XSLT : NEW_XML;
+        const ext = isXslt ? '.xsl' : '.xml';
+        if (!folder) {
+          const count = (isXslt ? xsltFiles : inputFiles).length + 1;
+          addFileEntry(isXslt, { id: `file-${Date.now()}`, name: `naamloos-${count}${ext}`, content });
+          return;
+        }
+        let name = prompt(`Naam van het nieuwe ${isXslt ? 'XSLT' : 'XML'}-bestand in "${folder.name}":`)?.trim();
+        if (!name) return;
+        if (!(isXslt ? /\.(xsl|xslt)$/i : /\.xml$/i).test(name)) name += ext;
+        try {
+          addFileEntry(isXslt, diskFile(name, content, await createFile(folder.dir, name, content)));
+          setStatus($('outStatus'), `Aangemaakt op disk: ${folder.name}/${name}`, 'ok');
+        } catch (e) {
+          setStatus($('outStatus'), `Bestand kon niet worden aangemaakt: ${e.message}`, 'err');
+        }
+      }
+
+      if ($('openFolder')) {
+        $('openFolder').onclick = async () => {
+          if (!folderSupported()) {
+            setStatus($('outStatus'), 'Een map openen wordt alleen ondersteund in Chrome en Edge.', 'err');
+            return;
+          }
+          rememberActiveInput();
+          if ([...inputFiles, ...xsltFiles].some(file => isDirty(file, file.content))
+            && !confirm('Er zijn niet-opgeslagen wijzigingen in bestanden op disk. Toch een andere map openen?')) return;
+          let result;
+          try {
+            result = await openFolder();
+          } catch (e) {
+            if (e.name !== 'AbortError') setStatus($('outStatus'), `Map kon niet worden geopend: ${e.message}`, 'err');
+            return;
+          }
+          if (!result.xslts.length && !result.xmls.length) {
+            setStatus($('outStatus'), `Geen .xsl-, .xslt- of .xml-bestanden gevonden in "${result.name}".`, 'err');
+            return;
+          }
+          folder = result;
+          if (result.xmls.length) {
+            inputFiles = result.xmls.map(file => diskFile(file.name, file.content, file.handle));
+            activeInputId = inputFiles[0].id;
+            xmlEd.setValue(inputFiles[0].content);
+          }
+          if (result.xslts.length) {
+            xsltFiles = result.xslts.map(file => diskFile(file.name, file.content, file.handle));
+            activeXsltId = xsltFiles[0].id;
+            xsltEd.setValue(xsltFiles[0].content);
+          }
+          $('folderName').textContent = `📁 ${result.name}`;
+          updateBars();
+          scheduleSave();
+          if ($('xsdToggle').checked) validate();
+          setStatus($('outStatus'), `Map "${result.name}" geopend: ${result.xslts.length} XSLT- en ${result.xmls.length} XML-bestand(en).`, 'ok');
+        };
+
+      }
+
+      // Voorbeelden (alleen playground)
+      if ($('exampleSelect')) {
+        $('exampleSelect').append(...XSLT_EXAMPLES.map((example, index) => {
+          const option = new Option(example.label, index);
+          option.title = example.detail;
+          return option;
+        }));
+        $('exampleSelect').onchange = () => {
+          const example = XSLT_EXAMPLES[$('exampleSelect').value];
+          $('exampleSelect').value = '';
+          if (!example) return;
+          inputFiles = example.inputs.map(file => ({ ...file }));
+          activeInputId = inputFiles[0].id;
+          xsltFiles = [{ id: 'example-xslt', name: 'transform.xsl', content: example.xslt }];
+          activeXsltId = xsltFiles[0].id;
+          xmlEd.setValue(inputFiles[0].content);
+          xsltEd.setValue(example.xslt);
+          $('params').replaceChildren();
+          example.params.forEach(param => addParam(param.name, param.value));
+          $('xsdToggle').checked = false;
+          document.querySelectorAll('.xsd').forEach(el => el.classList.add('hidden'));
+          updateBars();
+          setStatus($('outStatus'), `Voorbeeld "${example.label}" geladen${example.detail ? `: ${example.detail}` : ''}.`, 'ok');
+          scheduleSave();
+        };
+      }
       $('saveOutput').onclick = () => {
         const output = outEd.getValue();
         if (!output) {

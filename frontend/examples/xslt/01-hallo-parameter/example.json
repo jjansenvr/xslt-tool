@@ -1,0 +1,5 @@
+{
+  "label": "Hallo met parameter",
+  "detail": "Een xsl:param gebruiken in een for-each",
+  "params": [{ "name": "greeting", "value": "Goedemorgen" }]
+}

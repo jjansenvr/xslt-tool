@@ -1,5 +1,6 @@
 import jsonata from 'jsonata';
 import { downloadText } from './download.js';
+import { stateStorage } from './playground.js';
 import JSONATA_EXAMPLES from './jsonata-examples.json';
 
 export function initializeJsonataWorkspace() {
@@ -28,6 +29,7 @@ export function initializeJsonataWorkspace() {
   let scheduleSave = () => {};
   try {
     const state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+    const state = JSON.parse(stateStorage().getItem(STATE_KEY) || 'null');
     if (state && typeof state === 'object') savedState = state;
   } catch (e) {
     $('saveStatus').textContent = `Eerder opgeslagen sessie kon niet worden geladen: ${e.message}`;
@@ -78,6 +80,7 @@ export function initializeJsonataWorkspace() {
     function saveState() {
       try {
         localStorage.setItem(STATE_KEY, JSON.stringify({
+        stateStorage().setItem(STATE_KEY, JSON.stringify({
           input: inputEd.getValue(), expression: exprEd.getValue(), params: getParams()
         }));
         $('saveStatus').textContent = 'Automatisch opgeslagen';
