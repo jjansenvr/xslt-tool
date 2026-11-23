@@ -68,7 +68,7 @@ The generated XSD is inferred from the current XML sample. Review it before rely
 
 ### Choose a Saxon version
 
-Select **Saxon** in the top-right corner to open settings and choose an available Saxon-HE version. Saxon-HE 10.9 is the default in Frank!Framework and is also the default of this tool. Your choice is saved in this browser. The Docker image includes Saxon-HE 9.9.1-8, 10.9, 11.7, and 12.5.
+Select the **⚙** settings link in the top-right corner (it shows the Saxon version on the XSLT page) to open the centered settings page. There you can switch the DataSonnet and JSONata tabs off and choose an available Saxon-HE version. Frank!Framework works with Saxon-HE 10.9, 11.7 and 12.5; only 10.9 is included by default, and it is also the default of this tool. Your choice is saved in this browser. The Docker image includes Saxon-HE 9.9.1-8, 10.9, 11.7, and 12.5.
 
 ## DataSonnet
 

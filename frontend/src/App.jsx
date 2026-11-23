@@ -6,6 +6,7 @@ import JsonataWorkspace from './JsonataWorkspace.jsx';
 import PlaygroundButton from './PlaygroundButton.jsx';
 import { isPlayground, playgroundHref } from './playground.js';
 import { getTheme, setTheme } from './theme.js';
+import { isToolEnabled, setToolEnabled } from './tools.js';
 import logo from '../F-A-logo_header.png';
 
 export function Logo() {
@@ -35,9 +36,12 @@ export function Nav() {
     <>
       <nav className="page-nav">
         <a href={playgroundHref('/')} className={isDataSonnet || isJsonata ? '' : 'active'}>XSLT</a>
-        <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>
-        <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>
+        {isToolEnabled('datasonnet') && <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>}
+        {isToolEnabled('jsonata') && <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>}
       </nav>
+      <a href="/settings" className="settings" title="Instellingen">
+        ⚙{!isDataSonnet && !isJsonata && <> Saxon <span id="saxonVersion" /></>}
+      </a>
       <ThemeToggle />
     </>
   );
@@ -60,7 +64,6 @@ function Header() {
       )}
       <PlaygroundButton />
       <button className="small" id="openHelp" aria-haspopup="dialog" aria-controls="helpDialog">Help</button>
-      <a href="/settings" className="settings" title="Instellingen">⚙ Saxon <span id="saxonVersion" /></a>
     </header>
   );
 }
@@ -307,6 +310,17 @@ function SettingsPage() {
   const [defaultVersion, setDefaultVersion] = useState('');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
+  const [tools, setTools] = useState({ datasonnet: isToolEnabled('datasonnet'), jsonata: isToolEnabled('jsonata') });
+
+  function toggleTool(tool, enabled) {
+    try {
+      setToolEnabled(tool, enabled);
+      setTools(current => ({ ...current, [tool]: enabled }));
+      setError('');
+    } catch (storageError) {
+      setError(`Instelling kon niet worden opgeslagen: ${storageError.message}`);
+    }
+  }
 
   useEffect(() => {
     fetch('/api/saxon-versions')
@@ -344,12 +358,16 @@ function SettingsPage() {
     <div className="settings-page">
       <header><Logo /><a href="/">← Terug</a><h1>Instellingen</h1></header>
       <main>
+        <h2>Tools</h2>
+        <label><input type="checkbox" checked={tools.datasonnet} onChange={e => toggleTool('datasonnet', e.target.checked)} /> DataSonnet</label>
+        <label><input type="checkbox" checked={tools.jsonata} onChange={e => toggleTool('jsonata', e.target.checked)} /> JSONata</label>
         <h2>Saxon-HE versie voor de mapping</h2>
-        <p className="hint">Frank!Framework gebruikt Saxon-HE 10.9 als standaard. Deze tool gebruikt dezelfde versie standaard.</p>
+        <p className="hint">Frank!Framework werkt met Saxon-HE 10.9, 11.7 en 12.5. Alleen 10.9 zit standaard in het Frank!Framework; 11.7 en 12.5 niet. Deze tool gebruikt standaard ook 10.9.</p>
         {versions.map(version => (
           <label key={version}>
             <input type="radio" name="saxon" value={version} checked={selected === version} onChange={() => chooseVersion(version)} />
             Saxon-HE {version}{version === defaultVersion && <span className="hint">(standaard)</span>}
+            {['11.7', '12.5'].includes(version) && <span className="hint">(niet standaard in Frank!Framework)</span>}
           </label>
         ))}
         {saved && <p className="ok">{saved}</p>}
