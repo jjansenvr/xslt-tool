@@ -42,3 +42,13 @@ test('the settings link in the header opens the settings page and back returns',
   await page.getByRole('link', { name: '← Terug' }).click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('DataSonnet and JSONata can be switched off on the settings page', async ({ page }) => {
+  await page.goto('/settings');
+  await page.getByLabel('DataSonnet').uncheck();
+  await page.getByLabel('JSONata').uncheck();
+  await open(page, '/', 4);
+  await expect(page.locator('.page-nav a[href="/datasonnet"]')).toHaveCount(0);
+  await expect(page.locator('.page-nav a[href="/jsonata"]')).toHaveCount(0);
+  await expect(page.locator('#saxonVersion')).toBeVisible();
+});
