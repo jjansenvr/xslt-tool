@@ -80,9 +80,10 @@ dialog::backdrop { background: #0009; }
 .help-content h3 { margin: 20px 0 6px; color: var(--accent-text); font-size: 14px; }
 .help-content p { margin: 6px 0; }
 .help-content kbd, .help-content code { padding: 1px 5px; border-radius: 3px; background: var(--border); border: 1px solid var(--border-strong); font-family: ui-monospace, monospace; }
-a.settings { color: var(--fg); text-decoration: none; }
-header a.settings { order: 98; }
-a.settings:hover { text-decoration: underline; text-decoration-color: #fdc300; text-decoration-thickness: 3px; }
+a.settings { color: #fdc300; text-decoration: none; font-size: 24px; line-height: 1; }
+a.settings:hover { color: #fdc300; text-decoration: none; filter: brightness(1.15); }
+header a.settings { order: 99; }
+.saxon-version { color: var(--muted); }
 .settings-page { height: 100%; }
 .settings-page header { gap: 16px; }
 .settings-page header a { color: var(--fg); text-decoration: none; }
@@ -146,4 +147,3 @@ body.playground .file-bar { color: var(--pg-text); }
 .tab-close:hover, .tab-new:hover { background: var(--border-strong); color: var(--fg-strong); }
 .tab-new { color: var(--muted2); padding: 4px 10px; font-size: 16px; }
 body.playground .tab.active { box-shadow: inset 0 -2px 0 #e8590c; }
-header .theme-toggle { order: 99; }

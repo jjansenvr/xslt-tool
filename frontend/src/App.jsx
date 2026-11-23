@@ -13,18 +13,17 @@ export function Logo() {
   return <a href="/" className="logo"><img src={logo} alt="Frank!Academy" /></a>;
 }
 
-function ThemeToggle() {
+function ThemeSetting() {
   const [theme, setThemeState] = useState(getTheme());
-  const next = theme === 'light' ? 'dark' : 'light';
   return (
-    <button
-      className="small theme-toggle"
-      type="button"
-      title={next === 'light' ? 'Light mode' : 'Dark mode'}
-      onClick={() => { setTheme(next); setThemeState(next); }}
-    >
-      {theme === 'light' ? '🌙' : '☀'}
-    </button>
+    <label>
+      <input
+        type="checkbox"
+        checked={theme === 'light'}
+        onChange={e => { const next = e.target.checked ? 'light' : 'dark'; setTheme(next); setThemeState(next); }}
+      />
+      Light mode
+    </label>
   );
 }
 
@@ -39,10 +38,8 @@ export function Nav() {
         {isToolEnabled('datasonnet') && <a href={playgroundHref('/datasonnet')} className={isDataSonnet ? 'active' : ''}>DataSonnet</a>}
         {isToolEnabled('jsonata') && <a href={playgroundHref('/jsonata')} className={isJsonata ? 'active' : ''}>JSONata</a>}
       </nav>
-      <a href="/settings" className="settings" title="Instellingen">
-        ⚙{!isDataSonnet && !isJsonata && <> Saxon <span id="saxonVersion" /></>}
-      </a>
-      <ThemeToggle />
+      {!isDataSonnet && !isJsonata && <span className="saxon-version">Saxon <span id="saxonVersion" /></span>}
+      <a href="/settings" className="settings" title="Instellingen" aria-label="Instellingen">⚙</a>
     </>
   );
 }
@@ -358,6 +355,8 @@ function SettingsPage() {
     <div className="settings-page">
       <header><Logo /><a href="/">← Terug</a><h1>Instellingen</h1></header>
       <main>
+        <h2>Weergave</h2>
+        <ThemeSetting />
         <h2>Tools</h2>
         <label><input type="checkbox" checked={tools.datasonnet} onChange={e => toggleTool('datasonnet', e.target.checked)} /> DataSonnet</label>
         <label><input type="checkbox" checked={tools.jsonata} onChange={e => toggleTool('jsonata', e.target.checked)} /> JSONata</label>
