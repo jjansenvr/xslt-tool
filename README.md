@@ -16,6 +16,12 @@ You need Docker Desktop (or Docker Engine with the Compose plugin) running. Down
 docker compose up -d
 ```
 
+Or, download the Compose file and start the tool with one command:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jjansenvr/xslt-tool/main/docker-compose.yml -o docker-compose.yml && docker compose up -d
+```
+
 Docker downloads the published image from GitHub Container Registry; it does not build the application locally. Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 To stop the tool, run this in the same folder:
@@ -44,7 +50,15 @@ This builds the `xslt-tool:local` image from the local `Dockerfile` and serves i
 
 ## Run without Docker (Windows)
 
-Download `xslt-tool-windows-<version>.zip` from the latest [GitHub Release](../../releases/latest), unzip it, and run `start.bat`. The zip includes Python, Java, Saxon and DataSonnet, so nothing else needs to be installed. The tool opens at [http://localhost:8080](http://localhost:8080); close the console window to stop it. Windows SmartScreen may warn about the unsigned download: right-click the zip, choose **Properties**, and select **Unblock** before unzipping.
+Download the latest Windows ZIP from GitHub Releases with PowerShell (using `curl.exe`):
+
+```powershell
+$release = curl.exe -fsSL https://api.github.com/repos/jjansenvr/xslt-tool/releases/latest | ConvertFrom-Json
+$asset = $release.assets | Where-Object { $_.name -like 'xslt-tool-windows-*.zip' } | Select-Object -First 1
+curl.exe -fL $asset.browser_download_url -o $asset.name
+```
+
+Unzip the downloaded file, and run `start.bat`. The zip includes Python, Java, Saxon and DataSonnet, so nothing else needs to be installed. The tool opens at [http://localhost:8080](http://localhost:8080); close the console window to stop it. Windows SmartScreen may warn about the unsigned download: right-click the zip, choose **Properties**, and select **Unblock** before unzipping.
 
 ## Image updates
 
