@@ -2,7 +2,7 @@
 
 A browser-based tool for testing data transformations. It has three pages:
 
-- **XSLT**: run XSLT 3.0 transformations with Saxon-HE, validate XML against an XSD, and generate a starting schema.
+- **XSLT**: run XSLT transformations with Saxon-HE, validate XML against an XSD, and generate a starting schema.
 - **DataSonnet**: run [DataSonnet](https://datasonnet.github.io/datasonnet-mapper/) mappings on JSON, XML, CSV, YAML or text.
 - **JSONata**: evaluate [JSONata](https://jsonata.org/) expressions against JSON, entirely in the browser.
 
